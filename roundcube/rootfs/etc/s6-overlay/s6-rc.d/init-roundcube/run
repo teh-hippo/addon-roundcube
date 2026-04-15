@@ -10,6 +10,7 @@ declare imap_port
 declare smtp_host
 declare smtp_port
 declare des_key
+declare ingress_entry
 
 bashio::log.info "Configuring Roundcube..."
 
@@ -17,6 +18,7 @@ imap_host=$(bashio::config 'imap_host')
 imap_port=$(bashio::config 'imap_port')
 smtp_host=$(bashio::config 'smtp_host')
 smtp_port=$(bashio::config 'smtp_port')
+ingress_entry=$(bashio::addon.ingress_entry)
 
 # Ensure persistent data directories exist
 mkdir -p /data/db
@@ -71,9 +73,10 @@ cat > /var/www/roundcube/config/config.inc.php <<RCEOF
 \$config['support_url'] = '';
 \$config['product_name'] = 'Webmail';
 
-// Ingress — tell Roundcube which server variable holds the base path
-// Roundcube reads \$_SERVER[request_path] at runtime to build asset URLs
-\$config['request_path'] = 'HTTP_X_INGRESS_PATH';
+// Ingress — set the literal base path (with trailing slash)
+// Roundcube's get_request_path() strips the last path segment when reading
+// from \$_SERVER headers, so we set the value directly instead.
+\$config['request_path'] = '${ingress_entry}/';
 RCEOF
 
 # Initialize SQLite database on first run
