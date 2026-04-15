@@ -1,0 +1,28 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Home Assistant Add-on: Roundcube Webmail
+# Configures PHP-FPM pools from templates
+# ==============================================================================
+
+bashio::log.info "Configuring PHP-FPM..."
+
+# Generate Ingress PHP-FPM pool (port 9002)
+bashio::var.json \
+    name "ingress" \
+    port "^9002" \
+    | tempio \
+        -template /etc/php84/templates/php-fpm.gtpl \
+        -out /etc/php84/php-fpm.d/ingress.conf
+
+# Generate direct access PHP-FPM pool (port 9001) if port 80 is mapped
+if bashio::var.has_value "$(bashio::addon.port 80)"; then
+    bashio::var.json \
+        name "www" \
+        port "^9001" \
+        | tempio \
+            -template /etc/php84/templates/php-fpm.gtpl \
+            -out /etc/php84/php-fpm.d/www.conf
+fi
+
+bashio::log.info "PHP-FPM configured."

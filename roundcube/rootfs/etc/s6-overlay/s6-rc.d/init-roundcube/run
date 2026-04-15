@@ -1,0 +1,98 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Home Assistant Add-on: Roundcube Webmail
+# Configures Roundcube — generates config, initializes SQLite DB
+# ==============================================================================
+
+declare imap_host
+declare imap_port
+declare smtp_host
+declare smtp_port
+declare des_key
+
+bashio::log.info "Configuring Roundcube..."
+
+imap_host=$(bashio::config 'imap_host')
+imap_port=$(bashio::config 'imap_port')
+smtp_host=$(bashio::config 'smtp_host')
+smtp_port=$(bashio::config 'smtp_port')
+
+# Ensure persistent data directories exist
+mkdir -p /data/db
+
+# Generate a stable DES key on first run (atomic write)
+if [[ ! -f /data/des_key ]]; then
+    bashio::log.info "Generating new encryption key..."
+    openssl rand -base64 18 | tr -d '\n' > /data/des_key.tmp
+    mv /data/des_key.tmp /data/des_key
+fi
+des_key=$(cat /data/des_key)
+
+# Write Roundcube configuration
+bashio::log.info "Writing Roundcube configuration..."
+cat > /var/www/roundcube/config/config.inc.php <<RCEOF
+<?php
+
+// Database
+\$config['db_dsnw'] = 'sqlite:////data/db/roundcube.db?mode=0640';
+
+// IMAP
+\$config['imap_host'] = '${imap_host}:${imap_port}';
+
+// SMTP — reuse IMAP credentials
+\$config['smtp_host'] = '${smtp_host}:${smtp_port}';
+\$config['smtp_user'] = '%u';
+\$config['smtp_pass'] = '%p';
+
+// Security
+\$config['des_key'] = '${des_key}';
+\$config['enable_installer'] = false;
+\$config['auto_create_user'] = true;
+
+// Identity — allow any From address (needed for catch-all)
+\$config['identities_level'] = 0;
+
+// Plugins
+\$config['plugins'] = ['identity_from_to', 'archive', 'zipdownload'];
+
+// Logging — stdout for container/s6 integration
+\$config['log_driver'] = 'stdout';
+\$config['smtp_log'] = false;
+
+// UI
+\$config['skin'] = 'elastic';
+\$config['support_url'] = '';
+\$config['product_name'] = 'Webmail';
+
+// Ingress — read the dynamic path from the HA Supervisor proxy header
+\$config['request_path'] = \$_SERVER['HTTP_X_INGRESS_PATH'] ?? null;
+RCEOF
+
+# Write identity_from_to plugin configuration
+bashio::log.info "Configuring identity_from_to plugin..."
+cat > /var/www/roundcube/plugins/identity_from_to/config.inc.php <<PLUGINEOF
+<?php
+
+// Enable fuzzy matching for catch-all aliases
+\$config['identity_from_to_fuzzy_match'] = true;
+
+// Enable catch-all support
+\$config['identity_from_to_catch_all'] = true;
+PLUGINEOF
+
+# Initialize SQLite database on first run
+if [[ ! -f /data/db/roundcube.db ]]; then
+    bashio::log.info "Initializing SQLite database..."
+    php /var/www/roundcube/bin/initdb.sh \
+        --dir=/var/www/roundcube/SQL/ \
+        2>&1 || bashio::log.error "Database initialization failed"
+fi
+
+# Ensure correct permissions
+chmod 0640 /data/db/roundcube.db 2>/dev/null || true
+chown -R root:root /data/db
+
+bashio::log.info "Roundcube configured."
+bashio::log.info "  IMAP: ${imap_host}:${imap_port}"
+bashio::log.info "  SMTP: ${smtp_host}:${smtp_port}"

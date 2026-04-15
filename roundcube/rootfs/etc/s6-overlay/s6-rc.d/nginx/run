@@ -1,0 +1,12 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Home Assistant Add-on: Roundcube Webmail
+# Runs the nginx daemon
+# ==============================================================================
+
+# Wait for PHP-FPM to become available
+bashio::net.wait_for 9002
+
+bashio::log.info "Starting nginx..."
+exec nginx
