@@ -53,8 +53,11 @@ cat > /var/www/roundcube/config/config.inc.php <<RCEOF
 // Identity — allow any From address (needed for catch-all)
 \$config['identities_level'] = 0;
 
-// Plugins
-\$config['plugins'] = ['identity_from_to', 'archive', 'zipdownload'];
+// Plugins (identity_select is built-in — auto-selects From on reply)
+\$config['plugins'] = ['identity_select', 'archive', 'zipdownload'];
+
+// identity_select — use Delivered-To header for accurate alias matching
+\$config['identity_select_headers'] = ['Delivered-To', 'X-Original-To'];
 
 // Logging — stdout for container/s6 integration
 \$config['log_driver'] = 'stdout';
@@ -68,18 +71,6 @@ cat > /var/www/roundcube/config/config.inc.php <<RCEOF
 // Ingress — read the dynamic path from the HA Supervisor proxy header
 \$config['request_path'] = \$_SERVER['HTTP_X_INGRESS_PATH'] ?? null;
 RCEOF
-
-# Write identity_from_to plugin configuration
-bashio::log.info "Configuring identity_from_to plugin..."
-cat > /var/www/roundcube/plugins/identity_from_to/config.inc.php <<PLUGINEOF
-<?php
-
-// Enable fuzzy matching for catch-all aliases
-\$config['identity_from_to_fuzzy_match'] = true;
-
-// Enable catch-all support
-\$config['identity_from_to_catch_all'] = true;
-PLUGINEOF
 
 # Initialize SQLite database on first run
 if [[ ! -f /data/db/roundcube.db ]]; then

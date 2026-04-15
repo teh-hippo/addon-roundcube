@@ -16,7 +16,7 @@ RUN apk add --no-cache \
     nginx=1.28.3-r0 \
     sqlite=3.51.2-r0 \
     composer=2.9.7-r0 \
-    openssl=3.4.2-r0 \
+    openssl=3.5.6-r0 \
     php84=8.4.20-r1 \
     php84-fpm=8.4.20-r1 \
     php84-ctype=8.4.20-r1 \
@@ -48,15 +48,6 @@ RUN curl -J -L -o /tmp/roundcube.tar.gz \
     && mkdir -p /var/www/roundcube \
     && tar -xzf /tmp/roundcube.tar.gz -C /var/www/roundcube --strip-components=1 \
     && rm -rf /tmp/roundcube.tar.gz /var/www/roundcube/installer
-
-# Install identity_from_to plugin via composer
-RUN composer require \
-        --working-dir=/var/www/roundcube \
-        --no-interaction \
-        --no-dev \
-        --no-progress \
-        "sblaisot/identity_from_to:^3.3" \
-    && rm -rf /root/.composer/cache
 
 # Copy root filesystem
 COPY rootfs /
