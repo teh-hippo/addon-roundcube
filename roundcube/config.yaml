@@ -12,6 +12,7 @@ arch:
   - amd64
 ingress: true
 ingress_port: 8099
+ingress_stream: true
 panel_icon: mdi:email
 panel_title: Webmail
 panel_admin: false
