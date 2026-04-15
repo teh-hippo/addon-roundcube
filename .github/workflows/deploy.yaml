@@ -28,3 +28,5 @@ jobs:
       contents: read
       packages: write
     uses: hassio-addons/workflows/.github/workflows/app-deploy.yaml@3846ae0fd09acec8ac1ac308ceacd052b9d01bec # v2.0.6
+    secrets:
+      DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
