@@ -1,0 +1,43 @@
+#include <tunables/global>
+
+profile roundcube flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # Allow network access for IMAP/SMTP
+  network inet stream,
+  network inet6 stream,
+  network inet dgram,
+  network inet6 dgram,
+
+  # Allow reading/writing addon data
+  /data/** rwk,
+
+  # Roundcube web root
+  /var/www/roundcube/** r,
+  /var/www/roundcube/temp/** rwk,
+  /var/www/roundcube/logs/** rwk,
+  /var/www/roundcube/config/** rw,
+
+  # PHP-FPM and nginx
+  /run/** rwk,
+  /tmp/** rwk,
+  /proc/** r,
+  /dev/urandom r,
+  /dev/null rw,
+
+  # SSL certificates (read-only)
+  /ssl/** r,
+
+  # System libraries and binaries
+  /usr/** r,
+  /usr/bin/** ix,
+  /usr/sbin/** ix,
+  /bin/** ix,
+  /sbin/** ix,
+  /lib/** r,
+  /etc/** r,
+
+  # s6-overlay
+  /command/** ix,
+  /package/** r,
+}

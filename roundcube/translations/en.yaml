@@ -1,0 +1,39 @@
+---
+configuration:
+  imap_host:
+    name: IMAP Server
+    description: >-
+      IMAP server address with protocol prefix.
+      Use ssl:// for implicit TLS or tls:// for STARTTLS.
+      Example: ssl://imap.forwardemail.net
+  imap_port:
+    name: IMAP Port
+    description: >-
+      IMAP server port. Typically 993 for SSL/TLS or 143 for STARTTLS.
+  smtp_host:
+    name: SMTP Server
+    description: >-
+      SMTP server address with protocol prefix.
+      Use ssl:// for implicit TLS or tls:// for STARTTLS.
+      Example: ssl://smtp.forwardemail.net
+  smtp_port:
+    name: SMTP Port
+    description: >-
+      SMTP server port. Typically 465 for SSL/TLS or 587 for STARTTLS.
+  ssl:
+    name: SSL
+    description: >-
+      Enable SSL/TLS for direct port access (port 80).
+      Not needed for ingress access.
+  certfile:
+    name: Certificate File
+    description: >-
+      SSL certificate file path relative to /ssl/.
+  keyfile:
+    name: Private Key File
+    description: >-
+      SSL private key file path relative to /ssl/.
+  log_level:
+    name: Log Level
+    description: >-
+      Controls the verbosity of log output.
