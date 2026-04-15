@@ -50,6 +50,9 @@ cat > /var/www/roundcube/config/config.inc.php <<RCEOF
 \$config['enable_installer'] = false;
 \$config['auto_create_user'] = true;
 
+// Trust the HA Supervisor proxy for X-Ingress-Path and other forwarded headers
+\$config['proxy_whitelist'] = ['172.30.32.2'];
+
 // Identity — allow any From address (needed for catch-all)
 \$config['identities_level'] = 0;
 
@@ -68,8 +71,9 @@ cat > /var/www/roundcube/config/config.inc.php <<RCEOF
 \$config['support_url'] = '';
 \$config['product_name'] = 'Webmail';
 
-// Ingress — read the dynamic path from the HA Supervisor proxy header
-\$config['request_path'] = \$_SERVER['HTTP_X_INGRESS_PATH'] ?? null;
+// Ingress — tell Roundcube which server variable holds the base path
+// Roundcube reads \$_SERVER[request_path] at runtime to build asset URLs
+\$config['request_path'] = 'HTTP_X_INGRESS_PATH';
 RCEOF
 
 # Initialize SQLite database on first run
