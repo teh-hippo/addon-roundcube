@@ -16,12 +16,12 @@ Use `ssl://` prefix for implicit TLS or `tls://` for STARTTLS.
 
 **Examples:**
 
-| Provider | IMAP Host | SMTP Host |
-|----------|-----------|-----------|
+| Provider      | IMAP Host                     | SMTP Host                     |
+| ------------- | ----------------------------- | ----------------------------- |
 | Forward Email | `ssl://imap.forwardemail.net` | `ssl://smtp.forwardemail.net` |
-| Fastmail | `ssl://imap.fastmail.com` | `ssl://smtp.fastmail.com` |
-| Gmail | `ssl://imap.gmail.com` | `ssl://smtp.gmail.com` |
-| Mailbox.org | `ssl://imap.mailbox.org` | `ssl://smtp.mailbox.org` |
+| Fastmail      | `ssl://imap.fastmail.com`     | `ssl://smtp.fastmail.com`     |
+| Gmail         | `ssl://imap.gmail.com`        | `ssl://smtp.gmail.com`        |
+| Mailbox.org   | `ssl://imap.mailbox.org`      | `ssl://smtp.mailbox.org`      |
 
 ### Direct Port Access
 

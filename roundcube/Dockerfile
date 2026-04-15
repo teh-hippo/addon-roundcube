@@ -38,6 +38,9 @@ RUN apk add --no-cache \
     php84-xmlwriter=8.4.20-r1 \
     php84-zip=8.4.20-r1
 
+# Set shell for pipefail support
+SHELL ["/bin/ash", "-o", "pipefail", "-c"]
+
 # Download and verify Roundcube
 RUN curl -J -L -o /tmp/roundcube.tar.gz \
         "https://github.com/roundcube/roundcubemail/releases/download/${ROUNDCUBE_VERSION}/roundcubemail-${ROUNDCUBE_VERSION}-complete.tar.gz" \
@@ -48,6 +51,10 @@ RUN curl -J -L -o /tmp/roundcube.tar.gz \
 
 # Copy root filesystem — force executable permissions
 COPY --chmod=755 rootfs /
+
+# Health check (replaces addon watchdog)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -sf http://127.0.0.1:8099/ || exit 1
 
 # Build arguments for labels
 ARG BUILD_DATE

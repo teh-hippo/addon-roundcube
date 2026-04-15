@@ -35,9 +35,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": ["//Dockerfile$/"],
-      "matchStrings": [
-        "ARG ROUNDCUBE_VERSION=\"(?<currentValue>.*?)\"\\s+"
-      ],
+      "matchStrings": ["ARG ROUNDCUBE_VERSION=\"(?<currentValue>.*?)\"\\s+"],
       "depNameTemplate": "roundcube/roundcubemail",
       "datasourceTemplate": "github-releases"
     }

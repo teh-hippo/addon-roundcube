@@ -29,16 +29,16 @@ email client accessible from the HA sidebar.
 
 Configure your IMAP and SMTP server in the add-on options:
 
-| Option | Description | Default |
-|--------|-------------|---------|
+| Option      | Description                                       | Default                  |
+| ----------- | ------------------------------------------------- | ------------------------ |
 | `imap_host` | IMAP server (e.g., `ssl://imap.forwardemail.net`) | `ssl://imap.example.com` |
-| `imap_port` | IMAP port | `993` |
+| `imap_port` | IMAP port                                         | `993`                    |
 | `smtp_host` | SMTP server (e.g., `ssl://smtp.forwardemail.net`) | `ssl://smtp.example.com` |
-| `smtp_port` | SMTP port | `465` |
-| `ssl` | Enable SSL for direct port access | `false` |
-| `certfile` | SSL certificate file | `fullchain.pem` |
-| `keyfile` | SSL private key file | `privkey.pem` |
-| `log_level` | Logging verbosity | `info` |
+| `smtp_port` | SMTP port                                         | `465`                    |
+| `ssl`       | Enable SSL for direct port access                 | `false`                  |
+| `certfile`  | SSL certificate file                              | `fullchain.pem`          |
+| `keyfile`   | SSL private key file                              | `privkey.pem`            |
+| `log_level` | Logging verbosity                                 | `info`                   |
 
 See [DOCS.md](roundcube/DOCS.md) for detailed documentation.
 
