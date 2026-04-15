@@ -38,6 +38,7 @@ profile roundcube flags=(attach_disconnected,mediate_deleted) {
   /etc/** r,
 
   # s6-overlay
+  /init ix,
   /command/** ix,
-  /package/** r,
+  /package/** rix,
 }

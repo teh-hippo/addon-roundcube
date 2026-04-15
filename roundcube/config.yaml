@@ -16,6 +16,7 @@ panel_icon: mdi:email
 panel_title: Webmail
 panel_admin: false
 stage: experimental
+apparmor: false
 watchdog: "http://[HOST]:[PORT:8099]/"
 ports:
   80/tcp: null

@@ -46,16 +46,8 @@ RUN curl -J -L -o /tmp/roundcube.tar.gz \
     && tar -xzf /tmp/roundcube.tar.gz -C /var/www/roundcube --strip-components=1 \
     && rm -rf /tmp/roundcube.tar.gz /var/www/roundcube/installer
 
-# Copy root filesystem — force executable permissions on all copied files
+# Copy root filesystem — force executable permissions
 COPY --chmod=755 rootfs /
-
-# Re-seat /init in this image layer so its execute bit survives buildx --load
-# on native arm64. A chmod-only change on a base-image file is dropped by some
-# buildx versions during the OCI export step.
-RUN cp /init /init.tmp \
-    && mv /init.tmp /init \
-    && chmod 0755 /init \
-    && chmod 0755 /command/*
 
 # Build arguments for labels
 ARG BUILD_DATE
