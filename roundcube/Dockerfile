@@ -2,9 +2,6 @@ ARG BUILD_FROM=ghcr.io/hassio-addons/base:20.0.4
 # hadolint ignore=DL3006
 FROM ${BUILD_FROM}
 
-# Set shell
-SHELL ["/bin/ash", "-o", "pipefail", "-c"]
-
 # Build arguments
 ARG BUILD_ARCH=amd64
 ARG ROUNDCUBE_VERSION="1.7-rc6"
@@ -49,18 +46,16 @@ RUN curl -J -L -o /tmp/roundcube.tar.gz \
     && tar -xzf /tmp/roundcube.tar.gz -C /var/www/roundcube --strip-components=1 \
     && rm -rf /tmp/roundcube.tar.gz /var/www/roundcube/installer
 
-# Copy root filesystem
-COPY rootfs /
+# Copy root filesystem — force executable permissions on all copied files
+COPY --chmod=755 rootfs /
 
-# Ensure scripts are executable
-RUN chmod a+x \
-    /etc/s6-overlay/s6-rc.d/init-roundcube/run \
-    /etc/s6-overlay/s6-rc.d/init-nginx/run \
-    /etc/s6-overlay/s6-rc.d/init-php-fpm/run \
-    /etc/s6-overlay/s6-rc.d/nginx/run \
-    /etc/s6-overlay/s6-rc.d/nginx/finish \
-    /etc/s6-overlay/s6-rc.d/php-fpm/run \
-    /etc/s6-overlay/s6-rc.d/php-fpm/finish
+# Re-seat /init in this image layer so its execute bit survives buildx --load
+# on native arm64. A chmod-only change on a base-image file is dropped by some
+# buildx versions during the OCI export step.
+RUN cp /init /init.tmp \
+    && mv /init.tmp /init \
+    && chmod 0755 /init \
+    && chmod 0755 /command/*
 
 # Build arguments for labels
 ARG BUILD_DATE
