@@ -54,7 +54,7 @@ RUN curl -J -L -o /tmp/roundcube.tar.gz \
 WORKDIR /var/www/roundcube
 # hadolint ignore=DL3059
 RUN composer config repositories.forwardemail vcs https://github.com/teh-hippo/roundcube-forwardemail.git \
-    && composer require teh-hippo/forwardemail:dev-main --no-interaction --update-no-dev --optimize-autoloader
+    && composer require teh-hippo/forwardemail:dev-main --no-interaction --update-no-dev --optimize-autoloader --ignore-platform-reqs
 WORKDIR /
 
 # Copy root filesystem — force executable permissions
