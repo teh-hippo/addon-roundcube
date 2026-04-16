@@ -37,3 +37,8 @@ configuration:
     name: Log Level
     description: >-
       Controls the verbosity of log output.
+  plugins:
+    name: Additional Plugins
+    description: >-
+      List of composer package names to install at startup.
+      Example: elm/identity_smtp

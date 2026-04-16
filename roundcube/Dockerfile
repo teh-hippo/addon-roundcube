@@ -10,6 +10,7 @@ ARG ROUNDCUBE_SHA256="c68a7cf44c2f23adc76b3283aadb09c3d2921bd24efec1e9e14e57927c
 # Install PHP, nginx, and dependencies
 # hadolint ignore=DL3018
 RUN apk add --no-cache \
+    git \
     nginx=1.28.3-r0 \
     sqlite=3.51.2-r0 \
     composer=2.9.7-r0 \
@@ -48,6 +49,12 @@ RUN curl -J -L -o /tmp/roundcube.tar.gz \
     && mkdir -p /var/www/roundcube \
     && tar -xzf /tmp/roundcube.tar.gz -C /var/www/roundcube --strip-components=1 \
     && rm -rf /tmp/roundcube.tar.gz /var/www/roundcube/installer
+
+# Install Forward Email plugin via composer
+# hadolint ignore=DL3059
+RUN cd /var/www/roundcube \
+    && composer config repositories.forwardemail vcs https://github.com/teh-hippo/roundcube-forwardemail.git \
+    && composer require teh-hippo/forwardemail:dev-main --no-interaction --no-dev --optimize-autoloader
 
 # Copy root filesystem — force executable permissions
 COPY --chmod=755 rootfs /

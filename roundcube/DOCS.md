@@ -34,14 +34,39 @@ To enable direct access on port 80:
 ### Catch-All / Alias Email
 
 This add-on includes the
-[identity_from_to](https://github.com/sblaisot/identity_from_to) plugin,
-which automatically selects the correct sender identity when replying to
-emails. This is ideal for catch-all email setups where you receive mail at
-many different addresses on the same domain.
+[Forward Email plugin](https://github.com/teh-hippo/roundcube-forwardemail),
+which integrates with [Forward Email](https://forwardemail.net) to automatically
+manage aliases and per-identity SMTP credentials.
 
-The `identities_level` is set to `0`, allowing any From address. This means
-you can reply from whatever address the email was sent to, even if you have
-not pre-configured that identity.
+When you add a new sender identity in Roundcube, the plugin:
+
+1. Creates the alias on Forward Email via their API
+2. Generates SMTP credentials for that alias
+3. Stores the credentials so you can send as that address
+
+**Setup:**
+
+1. Open Roundcube Settings > Forward Email
+2. Enter your Forward Email API key
+3. Enter your domain (e.g. `itstotally.me`)
+4. Create identities as needed — aliases are created automatically
+
+The `identities_level` is set to `0`, allowing any From address. The
+`identity_select` plugin auto-selects the correct sender identity when
+replying based on the `Delivered-To` header.
+
+### Additional Plugins
+
+You can install additional Roundcube plugins via composer by adding them
+to the `plugins` configuration option:
+
+```yaml
+plugins:
+  - elm/identity_smtp
+```
+
+Plugins are installed at container startup. The package name should be
+the composer package name (e.g. `vendor/package`).
 
 ### Data Persistence
 

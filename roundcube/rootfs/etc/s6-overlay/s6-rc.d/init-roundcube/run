@@ -11,6 +11,7 @@ declare smtp_host
 declare smtp_port
 declare des_key
 declare ingress_entry
+declare extra_plugins=""
 
 bashio::log.info "Configuring Roundcube..."
 
@@ -19,6 +20,21 @@ imap_port=$(bashio::config 'imap_port')
 smtp_host=$(bashio::config 'smtp_host')
 smtp_port=$(bashio::config 'smtp_port')
 ingress_entry=$(bashio::addon.ingress_entry)
+
+# Install additional composer plugins if configured
+if bashio::config.has_value 'plugins'; then
+    bashio::log.info "Installing additional plugins via composer..."
+    cd /var/www/roundcube || exit 1
+    for plugin in $(bashio::config 'plugins'); do
+        bashio::log.info "  Installing plugin: ${plugin}"
+        composer require "${plugin}" --no-interaction --no-dev --optimize-autoloader 2>&1 \
+            || bashio::log.warning "  Failed to install plugin: ${plugin}"
+        # Extract short name (last segment after /) for plugins array
+        short_name="${plugin##*/}"
+        extra_plugins="${extra_plugins}, '${short_name}'"
+    done
+    cd - > /dev/null || true
+fi
 
 # Ensure persistent data directories exist
 mkdir -p /data/db
@@ -58,8 +74,8 @@ cat > /var/www/roundcube/config/config.inc.php <<RCEOF
 // Identity — allow any From address (needed for catch-all)
 \$config['identities_level'] = 0;
 
-// Plugins (identity_select is built-in — auto-selects From on reply)
-\$config['plugins'] = ['identity_select', 'archive', 'zipdownload'];
+// Plugins — built-in defaults plus any composer-installed plugins
+\$config['plugins'] = ['identity_select', 'archive', 'zipdownload', 'forwardemail'${extra_plugins}];
 
 // identity_select — use Delivered-To header for accurate alias matching
 \$config['identity_select_headers'] = ['Delivered-To', 'X-Original-To'];
