@@ -60,9 +60,9 @@ WORKDIR /
 # Copy root filesystem — force executable permissions
 COPY --chmod=755 rootfs /
 
-# Health check (replaces addon watchdog)
+# Health check — verify PHP-FPM is responding (not nginx, which blocks non-ingress)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -sf http://127.0.0.1:8099/ || exit 1
+    CMD pgrep php-fpm > /dev/null || exit 1
 
 # Build arguments for labels
 ARG BUILD_DATE
