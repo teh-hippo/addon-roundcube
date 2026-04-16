@@ -27,7 +27,7 @@ if bashio::config.has_value 'plugins'; then
     cd /var/www/roundcube || exit 1
     for plugin in $(bashio::config 'plugins'); do
         bashio::log.info "  Installing plugin: ${plugin}"
-        composer require "${plugin}" --no-interaction --no-dev --optimize-autoloader 2>&1 \
+        composer require "${plugin}" --no-interaction --update-no-dev --optimize-autoloader 2>&1 \
             || bashio::log.warning "  Failed to install plugin: ${plugin}"
         # Extract short name (last segment after /) for plugins array
         short_name="${plugin##*/}"
