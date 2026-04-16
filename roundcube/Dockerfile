@@ -51,11 +51,11 @@ RUN curl -J -L -o /tmp/roundcube.tar.gz \
     && rm -rf /tmp/roundcube.tar.gz /var/www/roundcube/installer
 
 # Install Forward Email plugin via composer
-# ADD of remote URL invalidates Docker cache when the upstream ref changes
+# NOTE: Change the echo string below to force Docker to re-fetch the plugin
 WORKDIR /var/www/roundcube
-ADD https://api.github.com/repos/teh-hippo/roundcube-forwardemail/git/refs/heads/main /tmp/forwardemail-ref.json
 # hadolint ignore=DL3059
-RUN composer config repositories.forwardemail vcs https://github.com/teh-hippo/roundcube-forwardemail.git \
+RUN echo "cache-bust-v2" \
+    && composer config repositories.forwardemail vcs https://github.com/teh-hippo/roundcube-forwardemail.git \
     && composer require teh-hippo/forwardemail:dev-main --no-interaction --update-no-dev --optimize-autoloader --ignore-platform-reqs
 WORKDIR /
 
