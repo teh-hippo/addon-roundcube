@@ -51,10 +51,11 @@ RUN curl -J -L -o /tmp/roundcube.tar.gz \
     && rm -rf /tmp/roundcube.tar.gz /var/www/roundcube/installer
 
 # Install Forward Email plugin via composer
+WORKDIR /var/www/roundcube
 # hadolint ignore=DL3059
-RUN cd /var/www/roundcube \
-    && composer config repositories.forwardemail vcs https://github.com/teh-hippo/roundcube-forwardemail.git \
+RUN composer config repositories.forwardemail vcs https://github.com/teh-hippo/roundcube-forwardemail.git \
     && composer require teh-hippo/forwardemail:dev-main --no-interaction --no-dev --optimize-autoloader
+WORKDIR /
 
 # Copy root filesystem — force executable permissions
 COPY --chmod=755 rootfs /
