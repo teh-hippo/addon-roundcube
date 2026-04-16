@@ -39,6 +39,12 @@ fi
 # Ensure persistent data directories exist
 mkdir -p /data/db
 
+# One-shot database reset (remove flag file after reset)
+if [[ -f /data/db/reset_db ]]; then
+    bashio::log.warning "Database reset requested — removing roundcube.db"
+    rm -f /data/db/roundcube.db /data/db/reset_db
+fi
+
 # Generate a stable DES key on first run (atomic write)
 if [[ ! -f /data/des_key ]]; then
     bashio::log.info "Generating new encryption key..."
@@ -106,6 +112,14 @@ fi
 # Ensure correct permissions
 chmod 0640 /data/db/roundcube.db 2>/dev/null || true
 chown -R root:root /data/db
+
+# Clear IMAP message cache on startup to avoid stale UID issues
+if [[ -f /data/db/roundcube.db ]]; then
+    bashio::log.info "Clearing message cache..."
+    sqlite3 /data/db/roundcube.db \
+        "DELETE FROM cache; DELETE FROM cache_index; DELETE FROM cache_messages; DELETE FROM cache_thread;" \
+        2>/dev/null || true
+fi
 
 bashio::log.info "Roundcube configured."
 bashio::log.info "  IMAP: ${imap_host}:${imap_port}"
