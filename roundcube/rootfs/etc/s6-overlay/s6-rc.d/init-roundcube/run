@@ -113,14 +113,12 @@ fi
 chmod 0640 /data/db/roundcube.db 2>/dev/null || true
 chown -R root:root /data/db
 
-# Clear IMAP message cache on startup to avoid stale UID issues
-if [[ -f /data/db/roundcube.db ]]; then
-    bashio::log.info "Clearing message cache..."
-    sqlite3 /data/db/roundcube.db \
-        "DELETE FROM cache; DELETE FROM cache_index; DELETE FROM cache_messages; DELETE FROM cache_thread;" \
-        2>/dev/null || true
-fi
-
 bashio::log.info "Roundcube configured."
 bashio::log.info "  IMAP: ${imap_host}:${imap_port}"
 bashio::log.info "  SMTP: ${smtp_host}:${smtp_port}"
+
+# Debug: verify plugin installation
+bashio::log.info "  Plugin dir check:"
+ls -la /var/www/roundcube/plugins/forwardemail/ 2>&1 | while read line; do
+    bashio::log.info "    ${line}"
+done
