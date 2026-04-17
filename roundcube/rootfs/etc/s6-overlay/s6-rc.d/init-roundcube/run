@@ -59,7 +59,12 @@ if [[ ${#plugin_packages[@]} -gt 0 ]]; then
     cd /var/www/roundcube || exit 1
     for plugin in "${plugin_packages[@]}"; do
         bashio::log.info "  Installing plugin: ${plugin}"
-        composer require "${plugin}" --no-interaction --update-no-dev --optimize-autoloader 2>&1 \
+        # Roundcube's own composer.json pulls kolab/net_ldap3 which requires
+        # the ldap PHP extension. Our image deliberately ships without it, so
+        # tell composer to accept the missing platform req only for ldap.
+        composer require "${plugin}" \
+            --no-interaction --update-no-dev --optimize-autoloader \
+            --ignore-platform-req=ext-ldap 2>&1 \
             || bashio::log.warning "  Failed to install plugin: ${plugin}"
         # Roundcube's plugin-installer renames vendor/<owner>/<name> to
         # plugins/<name> with hyphens converted to underscores.
@@ -94,7 +99,7 @@ if [[ -d "${share_plugin_dir}" ]]; then
             continue
         fi
         # Resolve to a real path and re-check containment under share_plugin_dir.
-        resolved=$(realpath -q "${plugin_path%/}" || true)
+        resolved=$(realpath "${plugin_path%/}" 2>/dev/null || true)
         if [[ -z "${resolved}" || "${resolved}" != "${share_plugin_dir}"/* ]]; then
             bashio::log.warning "  Skipping plugin outside shared root: ${plugin_name}"
             continue
