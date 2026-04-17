@@ -15,20 +15,21 @@ publish any extra ports or reverse-proxy anything yourself.
 - Sidebar access through **Home Assistant ingress** — no port forwarding, no
   certificate setup.
 - Persistent SQLite database under `/data/`, included in HA backups.
-- Drop-in plugin slot at `/share/roundcube/plugins/` for companion add-ons.
+- Optional composer-installed plugins from packagist — drop packagist names
+  into the `plugins` list and restart.
 
-## Companion add-ons
+## Catch-all mailboxes
 
-- **Roundcube Forward Email** — adds catch-all reply support for
-  [Forward Email](https://forwardemail.net) accounts. Install it after this one
-  if you want that workflow.
+For wildcard aliases where every address on your domain lands in one mailbox,
+add [`teh-hippo/roundcube-catchall`](https://github.com/teh-hippo/roundcube-catchall)
+to the `plugins` list. See the add-on **Documentation** tab for details.
 
 ## Getting started
 
 1. Install this add-on.
-2. Open **Configuration** and set the IMAP and SMTP hosts for your provider.
-   See the **Documentation** tab for prefix/port hints and per-provider
-   examples.
+2. Open **Configuration** and set `imap_host` and `smtp_host` — full URLs
+   including prefix and port (e.g. `ssl://imap.example.com:993`). See the
+   **Documentation** tab for provider examples.
 3. Start the add-on and open it from the sidebar.
 
 ## Support

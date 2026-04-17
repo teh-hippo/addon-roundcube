@@ -3,24 +3,21 @@ configuration:
   imap_host:
     name: IMAP Server
     description: >-
-      IMAP host with prefix. Use ssl:// (implicit TLS, port 993) or tls://
-      (STARTTLS, port 143). Example: ssl://imap.example.com
-  imap_port:
-    name: IMAP Port
-    description: Usually 993 (SSL/TLS) or 143 (STARTTLS).
+      Full IMAP URL with prefix and port. Use ssl:// (implicit TLS, typically
+      port 993) or tls:// (STARTTLS, typically port 143). Example:
+      ssl://imap.example.com:993
   smtp_host:
     name: SMTP Server
     description: >-
-      SMTP host with prefix. Use ssl:// (implicit TLS, port 465) or tls://
-      (STARTTLS, port 587). Example: ssl://smtp.example.com
-  smtp_port:
-    name: SMTP Port
-    description: Usually 465 (SSL/TLS) or 587 (STARTTLS).
+      Full SMTP URL with prefix and port. Use ssl:// (implicit TLS, typically
+      port 465) or tls:// (STARTTLS, typically port 587). Example:
+      ssl://smtp.example.com:465
   log_level:
     name: Log Level
     description: Verbosity of add-on log output.
   plugins:
     name: Additional Roundcube plugins
     description: >-
-      Optional. Composer packages to install at startup, e.g.
-      elm/identity_smtp. Advanced; leave empty for the default set.
+      Optional. Packagist package names to install via composer at startup.
+      For a catch-all mailbox, add teh-hippo/roundcube-catchall. Leave empty
+      for the default set.

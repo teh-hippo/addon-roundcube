@@ -10,12 +10,10 @@ authoring, general errors — refer to the upstream project:
 ## What this add-on provides
 
 - Roundcube 1.7 (PHP 8.4, Alpine base) with nginx + PHP-FPM.
-- Exposed through **Home Assistant ingress**; appears in the sidebar with no
+- Exposed through **Home Assistant ingress** — appears in the sidebar with no
   extra ports open.
 - Persistent SQLite database under `/data/` (included in HA backups).
-- Plugin extension point under `/share/roundcube/plugins/` so companion
-  add-ons (e.g. **Roundcube Forward Email**) can inject extra plugins without
-  a rebuild.
+- Optional composer-installed plugins from packagist.
 
 ## Configuration
 
@@ -23,68 +21,48 @@ Settings → Add-ons → Roundcube Webmail → Configuration.
 
 ### IMAP / SMTP
 
-| Prefix   | Mode         | Typical port (IMAP / SMTP) |
-| -------- | ------------ | -------------------------- |
-| `ssl://` | Implicit TLS | 993 / 465                  |
-| `tls://` | STARTTLS     | 143 / 587                  |
+Provide `imap_host` and `smtp_host` as **full URLs** — prefix and port
+included. The prefix chooses the encryption mode.
+
+| Prefix   | Mode         | Typical IMAP port | Typical SMTP port |
+| -------- | ------------ | ----------------- | ----------------- |
+| `ssl://` | Implicit TLS | 993               | 465               |
+| `tls://` | STARTTLS     | 143               | 587               |
 
 Examples:
 
-| Provider    | IMAP host                 | SMTP host                 |
-| ----------- | ------------------------- | ------------------------- |
-| Fastmail    | `ssl://imap.fastmail.com` | `ssl://smtp.fastmail.com` |
-| Gmail       | `ssl://imap.gmail.com`    | `ssl://smtp.gmail.com`    |
-| Mailbox.org | `ssl://imap.mailbox.org`  | `ssl://smtp.mailbox.org`  |
+| Provider      | `imap_host`                   | `smtp_host`                   |
+| ------------- | ----------------------------- | ----------------------------- |
+| Fastmail      | `ssl://imap.fastmail.com:993` | `ssl://smtp.fastmail.com:465` |
+| Gmail         | `ssl://imap.gmail.com:993`    | `ssl://smtp.gmail.com:465`    |
+| Mailbox.org   | `ssl://imap.mailbox.org:993`  | `ssl://smtp.mailbox.org:465`  |
+| Forward Email | `ssl://imap.forwardemail.net:993` | `ssl://smtp.forwardemail.net:465` |
 
 Changing IMAP/SMTP settings restarts the container in seconds — no rebuild.
 
 ### Additional Roundcube plugins
 
-Add composer package names to the `plugins` list, e.g.:
+Add packagist package names to the `plugins` list. They are fetched with
+composer on container start.
 
 ```yaml
 plugins:
+  - teh-hippo/roundcube-catchall
   - elm/identity_smtp
 ```
 
-Plugins are installed at container start. A restart is enough — no rebuild.
+Each package installs into `plugins/<name>` (hyphens become underscores) and
+is added to Roundcube's active plugin list.
 
-### Catch-all mailbox
+#### Catch-all mailboxes
 
-If you use a wildcard alias (e.g. via Forward Email) where every address on
-your domain lands in one mailbox, enable the built-in catch-all support.
+If every address on your domain lands in one inbox (wildcard alias, catch-all),
+add [`teh-hippo/roundcube-catchall`](https://github.com/teh-hippo/roundcube-catchall)
+to the `plugins` list. The plugin auto-creates an identity for the
+delivered-to address on Reply, so the next reply uses the right `From:`.
 
-```yaml
-catchall:
-  enabled: true
-  autologin: true
-  autologin_user: inbox@example.com
-  autologin_password: "your-app-password"
-  identity_autocreate: true
-```
-
-What each flag does:
-
-- `enabled` — installs the
-  [`teh-hippo/roundcube-catchall`](https://github.com/teh-hippo/roundcube-catchall)
-  plugin at startup. Required for any of the other flags to take effect.
-- `autologin` + `autologin_user` + `autologin_password` — bypass the
-  Roundcube login screen when the add-on is opened through HA ingress. The
-  credentials above are stored in plain text inside the add-on options
-  (Supervisor holds `options.json` with root-only permissions).
-- `identity_autocreate` — when you reply to a message, the plugin adds the
-  `To:` address as a Roundcube identity so the next reply uses it as the
-  `From:`. Leave enabled for a true catch-all experience.
-
-### Plugin extension point (advanced)
-
-Any subdirectory dropped into `/share/roundcube/plugins/<name>/` is picked up
-on Roundcube startup **if** it carries a `.ha-plugin-ready` marker file, is
-not a symlink, and its name matches `^[a-zA-Z0-9_-]+$`. Matching trees are
-symlinked into Roundcube's plugins folder and registered automatically; a
-sibling `config.inc.php` is included after the main Roundcube config. This
-is how companion add-ons (e.g. Roundcube Forward Email) extend Roundcube
-without rebuilding this image.
+Plugin-specific options (autologin, identity auto-create) live in the plugin's
+own `config.inc.php` — see its README.
 
 ## Data persistence
 
@@ -102,8 +80,8 @@ at the top of this document. The items below are specific to the HA add-on.
 ### The add-on won't start
 
 - Check the **Log** tab for PHP-FPM or nginx errors.
-- If you changed the `plugins` list, a failed composer fetch stops startup.
-  Restart after removing the offending package.
+- If you added something to the `plugins` list, a failed composer fetch stops
+  startup. Remove the offending package and restart.
 
 ### Sidebar shows a blank page or 502
 
@@ -112,10 +90,10 @@ at the top of this document. The items below are specific to the HA add-on.
 
 ### Login fails
 
-- Verify the IMAP host prefix (`ssl://` vs `tls://`) and port match your
+- Verify the `imap_host` prefix (`ssl://` vs `tls://`) and port match your
   provider.
-- If the provider requires app-specific passwords (Gmail, Fastmail), you
-  must generate one on their end.
+- If the provider requires app-specific passwords (Gmail, Fastmail), you must
+  generate one on their end.
 
 ### I changed config — do I need to rebuild?
 

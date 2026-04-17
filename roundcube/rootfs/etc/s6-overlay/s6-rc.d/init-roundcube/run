@@ -2,56 +2,30 @@
 # shellcheck shell=bash
 # ==============================================================================
 # Home Assistant Add-on: Roundcube Webmail
-# Configures Roundcube — generates config, initializes SQLite DB
+# Configures Roundcube — generates config, installs composer plugins,
+# initializes SQLite DB.
 # ==============================================================================
 
 declare imap_host
-declare imap_port
 declare smtp_host
-declare smtp_port
 declare des_key
 declare ingress_entry
 declare extra_plugins=""
-declare share_plugin_dir="/share/roundcube/plugins"
-declare shared_plugin_names=""
-declare shared_plugin_configs=""
-declare catchall_enabled=false
-declare catchall_autologin=false
-declare catchall_autologin_user=""
-declare catchall_autologin_password=""
-declare catchall_identity_autocreate=true
 
 bashio::log.info "Configuring Roundcube..."
 
 imap_host=$(bashio::config 'imap_host')
-imap_port=$(bashio::config 'imap_port')
 smtp_host=$(bashio::config 'smtp_host')
-smtp_port=$(bashio::config 'smtp_port')
 ingress_entry=$(bashio::addon.ingress_entry)
 
-if bashio::config.true 'catchall.enabled'; then
-    catchall_enabled=true
-    bashio::config.true 'catchall.autologin' && catchall_autologin=true
-    catchall_autologin_user=$(bashio::config 'catchall.autologin_user' '')
-    catchall_autologin_password=$(bashio::config 'catchall.autologin_password' '')
-    if bashio::config.exists 'catchall.identity_autocreate' \
-        && ! bashio::config.true 'catchall.identity_autocreate'; then
-        catchall_identity_autocreate=false
-    fi
-fi
-
-# Install additional composer plugins if configured
+# Install additional Roundcube plugins via composer (packagist names, e.g.
+# `teh-hippo/roundcube-catchall`). Plugin installer renames the vendor path to
+# `plugins/<name>` with hyphens converted to underscores.
 declare -a plugin_packages=()
 if bashio::config.has_value 'plugins'; then
     while IFS= read -r plugin; do
         [[ -n "${plugin}" ]] && plugin_packages+=("${plugin}")
     done < <(bashio::config 'plugins')
-fi
-if [[ "${catchall_enabled}" == "true" ]]; then
-    # shellcheck disable=SC2076
-    if [[ ! " ${plugin_packages[*]} " =~ " teh-hippo/roundcube-catchall " ]]; then
-        plugin_packages+=("teh-hippo/roundcube-catchall")
-    fi
 fi
 
 if [[ ${#plugin_packages[@]} -gt 0 ]]; then
@@ -66,58 +40,11 @@ if [[ ${#plugin_packages[@]} -gt 0 ]]; then
             --no-interaction --update-no-dev --optimize-autoloader \
             --ignore-platform-req=ext-ldap 2>&1 \
             || bashio::log.warning "  Failed to install plugin: ${plugin}"
-        # Roundcube's plugin-installer renames vendor/<owner>/<name> to
-        # plugins/<name> with hyphens converted to underscores.
         short_name="${plugin##*/}"
         short_name="${short_name//-/_}"
         extra_plugins="${extra_plugins}, '${short_name}'"
     done
     cd - > /dev/null || true
-fi
-
-# Dynamic plugin loader — pick up plugins dropped into the HA shared folder by
-# companion add-ons. Each subdirectory of /share/roundcube/plugins/<name>/
-# becomes a Roundcube plugin IFF it contains a `.ha-plugin-ready` marker file
-# written by the companion add-on after atomic provisioning. If
-# <name>/config.inc.php exists it is included after the main config so
-# companion add-ons can inject settings.
-if [[ -d "${share_plugin_dir}" ]]; then
-    bashio::log.info "Scanning ${share_plugin_dir} for shared plugins..."
-    for plugin_path in "${share_plugin_dir}"/*/; do
-        [[ -d "${plugin_path}" ]] || continue
-        plugin_name=$(basename "${plugin_path}")
-        # Skip names that contain characters we would not want to embed in PHP.
-        if [[ ! "${plugin_name}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-            bashio::log.warning "  Skipping plugin with unsafe name: ${plugin_name}"
-            continue
-        fi
-        # Reject symlinked plugin dirs: /share is writable by any add-on, so a
-        # symlink would let a writer point Roundcube at code outside the
-        # shared-plugins root.
-        if [[ -L "${plugin_path%/}" ]]; then
-            bashio::log.warning "  Skipping symlinked plugin entry: ${plugin_name}"
-            continue
-        fi
-        # Resolve to a real path and re-check containment under share_plugin_dir.
-        resolved=$(realpath "${plugin_path%/}" 2>/dev/null || true)
-        if [[ -z "${resolved}" || "${resolved}" != "${share_plugin_dir}"/* ]]; then
-            bashio::log.warning "  Skipping plugin outside shared root: ${plugin_name}"
-            continue
-        fi
-        # Require a readiness marker so we never pick up half-provisioned trees.
-        if [[ ! -f "${plugin_path}.ha-plugin-ready" ]]; then
-            bashio::log.info "  Skipping ${plugin_name}: no .ha-plugin-ready marker"
-            continue
-        fi
-        target="/var/www/roundcube/plugins/${plugin_name}"
-        rm -rf "${target}"
-        ln -s "${resolved}" "${target}"
-        bashio::log.info "  Linked shared plugin: ${plugin_name}"
-        shared_plugin_names="${shared_plugin_names}, '${plugin_name}'"
-        if [[ -f "${plugin_path}config.inc.php" ]]; then
-            shared_plugin_configs="${shared_plugin_configs}${plugin_path}config.inc.php"$'\n'
-        fi
-    done
 fi
 
 # Ensure persistent data directories exist
@@ -126,7 +53,9 @@ mkdir -p /data/db
 # One-shot database reset (remove flag file after reset)
 if [[ -f /data/db/reset_db ]]; then
     bashio::log.warning "Database reset requested — removing roundcube.db"
-    rm -f /data/db/roundcube.db /data/db/reset_db
+    rm -f /data/db/roundcube.db /data/db/roundcube.db-journal \
+          /data/db/roundcube.db-wal /data/db/roundcube.db-shm \
+          /data/db/reset_db
 fi
 
 # Generate a stable DES key on first run (atomic write)
@@ -145,11 +74,11 @@ cat > /var/www/roundcube/config/config.inc.php <<RCEOF
 // Database
 \$config['db_dsnw'] = 'sqlite:////data/db/roundcube.db?mode=0640';
 
-// IMAP
-\$config['imap_host'] = '${imap_host}:${imap_port}';
+// IMAP — full URL form: ssl://host:993 or tls://host:143
+\$config['imap_host'] = '${imap_host}';
 
-// SMTP — reuse IMAP credentials
-\$config['smtp_host'] = '${smtp_host}:${smtp_port}';
+// SMTP — reuse IMAP credentials. Full URL form: ssl://host:465 or tls://host:587
+\$config['smtp_host'] = '${smtp_host}';
 \$config['smtp_user'] = '%u';
 \$config['smtp_pass'] = '%p';
 
@@ -161,14 +90,11 @@ cat > /var/www/roundcube/config/config.inc.php <<RCEOF
 // Trust the HA Supervisor proxy for X-Ingress-Path and other forwarded headers
 \$config['proxy_whitelist'] = ['172.30.32.2'];
 
-// Identity — allow any From address (needed for catch-all)
+// Identity — allow any From address (needed for catch-all-style mailboxes)
 \$config['identities_level'] = 0;
 
-// Plugins — built-in defaults plus composer-installed and shared plugins
-\$config['plugins'] = ['identity_select', 'archive', 'zipdownload'${extra_plugins}${shared_plugin_names}];
-
-// identity_select — use Delivered-To header for accurate alias matching
-\$config['identity_select_headers'] = ['Delivered-To', 'X-Original-To'];
+// Plugins — built-in defaults plus any composer-installed plugins
+\$config['plugins'] = ['archive', 'zipdownload'${extra_plugins}];
 
 // Logging — stdout routes through php-fpm's catch_workers_output to container stderr
 \$config['log_driver'] = 'stdout';
@@ -185,54 +111,6 @@ cat > /var/www/roundcube/config/config.inc.php <<RCEOF
 // from \$_SERVER headers, so we set the value directly instead.
 \$config['request_path'] = '${ingress_entry}/';
 RCEOF
-
-# Append include lines for each shared plugin's config.inc.php, if present.
-# Each companion add-on is responsible for writing a safe PHP file at that
-# path; we only reference it here so their settings flow into Roundcube.
-if [[ -n "${shared_plugin_configs}" ]]; then
-    while IFS= read -r cfg; do
-        [[ -n "${cfg}" ]] || continue
-        # Escape any single quotes in the path before embedding as a PHP literal.
-        safe_cfg=${cfg//\'/\\\'}
-        cat >> /var/www/roundcube/config/config.inc.php <<PHPEOF
-
-// Shared plugin config injected by companion add-on
-@include '${safe_cfg}';
-PHPEOF
-        bashio::log.info "  Including shared plugin config: ${cfg}"
-    done <<< "${shared_plugin_configs}"
-fi
-
-# Render catch-all plugin config from add-on options. We write directly into
-# the plugin's own directory so Roundcube picks it up automatically.
-if [[ "${catchall_enabled}" == "true" ]]; then
-    catchall_dir="/var/www/roundcube/plugins/roundcube_catchall"
-    if [[ ! -d "${catchall_dir}" ]]; then
-        bashio::log.warning "catchall enabled but ${catchall_dir} does not exist — composer install may have failed"
-    else
-        bashio::log.info "Writing catch-all plugin config..."
-        # Single-quote PHP escape: backslash first, then quote.
-        esc_user=${catchall_autologin_user//\\/\\\\}
-        esc_user=${esc_user//\'/\\\'}
-        esc_pass=${catchall_autologin_password//\\/\\\\}
-        esc_pass=${esc_pass//\'/\\\'}
-        autologin_php="false"
-        [[ "${catchall_autologin}" == "true" ]] && autologin_php="true"
-        identity_php="true"
-        [[ "${catchall_identity_autocreate}" == "true" ]] || identity_php="false"
-        umask 0027
-        cat > "${catchall_dir}/config.inc.php" <<PHPEOF
-<?php
-// Generated by Home Assistant add-on — do not edit by hand.
-\$config['catchall_autologin'] = ${autologin_php};
-\$config['catchall_autologin_user'] = '${esc_user}';
-\$config['catchall_autologin_pass'] = '${esc_pass}';
-\$config['catchall_identity_autocreate'] = ${identity_php};
-PHPEOF
-        umask 0022
-        chmod 0640 "${catchall_dir}/config.inc.php" 2>/dev/null || true
-    fi
-fi
 
 # Pipe Roundcube log files to container stderr so they appear in addon logs.
 # Symlinks provide belt-and-braces: even if log_driver='stdout' is ignored for
@@ -260,8 +138,11 @@ fi
 
 if [[ "${need_init}" == "true" ]]; then
     bashio::log.info "Initializing SQLite database..."
-    # Clear any half-written file so initdb starts from a clean slate.
-    rm -f /data/db/roundcube.db
+    # Clear any half-written file AND SQLite journal/WAL/shm sidecars. Missing
+    # the sidecars causes SQLite to replay a stale WAL on the newly-created DB
+    # and surfaces as "table users already exists" during initdb.
+    rm -f /data/db/roundcube.db /data/db/roundcube.db-journal \
+          /data/db/roundcube.db-wal /data/db/roundcube.db-shm
     if ! php /var/www/roundcube/bin/initdb.sh --dir=/var/www/roundcube/SQL/ 2>&1; then
         bashio::log.fatal "Database initialization failed"
         exit 1
@@ -273,5 +154,5 @@ chmod 0640 /data/db/roundcube.db 2>/dev/null || true
 chown -R root:root /data/db
 
 bashio::log.info "Roundcube configured."
-bashio::log.info "  IMAP: ${imap_host}:${imap_port}"
-bashio::log.info "  SMTP: ${smtp_host}:${smtp_port}"
+bashio::log.info "  IMAP: ${imap_host}"
+bashio::log.info "  SMTP: ${smtp_host}"
