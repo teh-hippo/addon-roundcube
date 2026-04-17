@@ -17,7 +17,7 @@ RUN apk add --no-cache \
 COPY --chmod=755 rootfs /
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD pgrep -f "forwardemail-watchdog" > /dev/null || exit 1
+    CMD pgrep -f "catchall-watchdog" > /dev/null || exit 1
 
 ARG BUILD_DATE
 ARG BUILD_DESCRIPTION

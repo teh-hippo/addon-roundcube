@@ -1,7 +1,7 @@
 #!/command/with-contenv bashio
 # shellcheck shell=bash
 # Lightweight watchdog so HA sees the add-on as running. HA restarts the
-# whole service tree on config changes, which re-runs init-forwardemail.
+# whole service tree on config changes, which re-runs init-catchall.
 
-bashio::log.info "Forward Email plugin provisioned; idling."
+bashio::log.info "Catch-all plugin provisioned; idling."
 exec sleep infinity

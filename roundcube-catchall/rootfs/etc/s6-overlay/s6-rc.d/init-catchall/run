@@ -1,33 +1,33 @@
 #!/command/with-contenv bashio
 # shellcheck shell=bash
 # ==============================================================================
-# Home Assistant Add-on: Roundcube Forward Email
-# Provisions the Forward Email plugin into the shared plugin folder so the
-# Roundcube Webmail add-on can pick it up.
+# Home Assistant Add-on: Roundcube Catch-all
+# Provisions the catch-all Roundcube plugin into the shared plugin folder so
+# the Roundcube Webmail add-on can pick it up.
 # ==============================================================================
 
-declare api_key
 declare domain
-declare auto_create_raw
-declare auto_delete_raw
-declare auto_create_php
-declare auto_delete_php
+declare identity_autocreate_raw
 declare autologin_raw
 declare autologin_user
 declare autologin_password
+declare fe_api_key
+declare fe_auto_delete_raw
+declare identity_autocreate_php
 declare autologin_php
-declare api_key_php
+declare fe_auto_delete_php
 declare domain_php
 declare autologin_user_php
 declare autologin_password_php
-declare -r plugin_repo="https://github.com/teh-hippo/roundcube-forwardemail.git"
+declare fe_api_key_php
+declare -r plugin_repo="https://github.com/teh-hippo/roundcube-catchall.git"
 # Pin to a specific commit to avoid silently pulling new upstream code into
 # Roundcube every restart. Bump intentionally when rolling forward.
-declare -r plugin_ref="648920667fb706a649575d0a4c08174f37894c6a"
+declare -r plugin_ref="7304fde131aa95088db785bb1c639fe96cc918f2"
 declare -r plugin_root="/share/roundcube/plugins"
-declare -r plugin_dir="${plugin_root}/forwardemail"
-declare -r plugin_staging="${plugin_root}/.forwardemail.staging.$$"
-declare -r plugin_previous="${plugin_root}/.forwardemail.previous"
+declare -r plugin_dir="${plugin_root}/catchall"
+declare -r plugin_staging="${plugin_root}/.catchall.staging.$$"
+declare -r plugin_previous="${plugin_root}/.catchall.previous"
 declare -r marker_name=".ha-plugin-ready"
 
 cleanup() {
@@ -35,20 +35,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
-bashio::log.info "Provisioning Forward Email plugin..."
+bashio::log.info "Provisioning catch-all plugin..."
 
 if ! bashio::config.has_value 'domain'; then
     bashio::log.fatal "domain is required."
     exit 1
 fi
 
-api_key=$(bashio::config 'api_key')
 domain=$(bashio::config 'domain')
-auto_create_raw=$(bashio::config 'auto_create')
-auto_delete_raw=$(bashio::config 'auto_delete')
+identity_autocreate_raw=$(bashio::config 'identity_autocreate')
 autologin_raw=$(bashio::config 'autologin')
 autologin_user=$(bashio::config 'autologin_user')
 autologin_password=$(bashio::config 'autologin_password')
+fe_api_key=$(bashio::config 'forward_email_api_key')
+fe_auto_delete_raw=$(bashio::config 'forward_email_auto_delete')
 
 if [[ "${domain}" == *"@"* ]]; then
     bashio::log.fatal "domain must be a bare domain (e.g. 'example.com'), not an email address."
@@ -74,8 +74,8 @@ else
     autologin_php="false"
 fi
 
-[[ "${auto_create_raw}" == "false" ]] && auto_create_php="false" || auto_create_php="true"
-[[ "${auto_delete_raw}" == "true" ]] && auto_delete_php="true" || auto_delete_php="false"
+[[ "${identity_autocreate_raw}" == "false" ]] && identity_autocreate_php="false" || identity_autocreate_php="true"
+[[ "${fe_auto_delete_raw}" == "true" ]] && fe_auto_delete_php="true" || fe_auto_delete_php="false"
 
 # Escape a value so it can safely sit inside a PHP single-quoted string.
 # PHP only interprets \\ and \' within single quotes.
@@ -109,24 +109,25 @@ if [[ -f "${plugin_staging}/composer.json" ]]; then
 fi
 
 bashio::log.info "Writing plugin config..."
-api_key_php=$(php_escape_sq "${api_key}")
 domain_php=$(php_escape_sq "${domain}")
 autologin_user_php=$(php_escape_sq "${autologin_user}")
 autologin_password_php=$(php_escape_sq "${autologin_password}")
+fe_api_key_php=$(php_escape_sq "${fe_api_key}")
 
 cat > "${plugin_staging}/config.inc.php" <<PHPEOF
 <?php
-// Managed by the Roundcube Forward Email add-on — edits will be overwritten.
+// Managed by the Roundcube Catch-all add-on — edits will be overwritten.
 
-// Use the plaintext (admin/system) slot; the regular forwardemail_api_key
-// slot is for user-encrypted values stored via Roundcube's Settings UI.
-\$config['forwardemail_api_key_plain'] = '${api_key_php}';
-\$config['forwardemail_domain']        = '${domain_php}';
-\$config['forwardemail_auto_create']   = ${auto_create_php};
-\$config['forwardemail_auto_delete']   = ${auto_delete_php};
-\$config['forwardemail_autologin']      = ${autologin_php};
-\$config['forwardemail_autologin_user'] = '${autologin_user_php}';
-\$config['forwardemail_autologin_pass'] = '${autologin_password_php}';
+\$config['catchall_domain']               = '${domain_php}';
+\$config['catchall_identity_autocreate']  = ${identity_autocreate_php};
+\$config['catchall_autologin']            = ${autologin_php};
+\$config['catchall_autologin_user']       = '${autologin_user_php}';
+\$config['catchall_autologin_pass']       = '${autologin_password_php}';
+
+// Forward Email integration (optional). When the API key is empty the plugin
+// stays in shared-credential mode and none of the FE-specific paths run.
+\$config['catchall_fe_api_key_plain']     = '${fe_api_key_php}';
+\$config['catchall_fe_auto_delete']       = ${fe_auto_delete_php};
 PHPEOF
 chmod 0640 "${plugin_staging}/config.inc.php"
 
@@ -150,21 +151,25 @@ if ! mv "${plugin_staging}" "${plugin_dir}"; then
 fi
 rm -rf "${plugin_previous}"
 
-api_key_mask=""
-if [[ -n "${api_key}" ]]; then
-    api_key_mask="${api_key:0:4}…${api_key: -2}"
+# Clean up any leftover tree from the legacy forwardemail add-on so Roundcube
+# does not accidentally load both plugins on the next restart.
+rm -rf "${plugin_root}/forwardemail" "${plugin_root}/.forwardemail.previous" 2>/dev/null || true
+
+fe_api_key_mask=""
+if [[ -n "${fe_api_key}" ]]; then
+    fe_api_key_mask="${fe_api_key:0:4}…${fe_api_key: -2}"
 fi
 bashio::log.info "Plugin provisioned at ${plugin_dir}"
-bashio::log.info "  domain:      ${domain}"
-if [[ -n "${api_key_mask}" ]]; then
-    bashio::log.info "  api_key:     ${api_key_mask} (per-alias API mode)"
-else
-    bashio::log.info "  api_key:     (none — shared credential mode)"
-fi
-bashio::log.info "  auto_create: ${auto_create_php}"
-bashio::log.info "  auto_delete: ${auto_delete_php}"
-bashio::log.info "  autologin:   ${autologin_php}"
+bashio::log.info "  domain:              ${domain}"
+bashio::log.info "  identity_autocreate: ${identity_autocreate_php}"
+bashio::log.info "  autologin:           ${autologin_php}"
 if [[ "${autologin_php}" == "true" ]]; then
-    bashio::log.info "  autologin_user: ${autologin_user}"
+    bashio::log.info "  autologin_user:      ${autologin_user}"
+fi
+if [[ -n "${fe_api_key_mask}" ]]; then
+    bashio::log.info "  forward_email:       ${fe_api_key_mask} (per-alias API mode)"
+    bashio::log.info "  fe_auto_delete:      ${fe_auto_delete_php}"
+else
+    bashio::log.info "  forward_email:       (none — shared credential mode)"
 fi
 bashio::log.notice "Restart the Roundcube Webmail add-on to load plugin changes."
