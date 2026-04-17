@@ -1,6 +1,6 @@
 ---
 name: Roundcube Webmail
-version: dev-fe8
+version: dev
 slug: roundcube
 description: Roundcube webmail client for any IMAP server
 url: https://github.com/teh-hippo/addon-roundcube
