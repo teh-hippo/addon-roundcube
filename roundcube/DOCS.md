@@ -25,10 +25,10 @@ Configure via **Settings → Add-ons → Roundcube Webmail → Configuration**.
 
 Point the add-on at your provider. Include a protocol prefix:
 
-| Prefix   | Meaning        | Typical port (IMAP / SMTP) |
-| -------- | -------------- | -------------------------- |
-| `ssl://` | Implicit TLS   | 993 / 465                  |
-| `tls://` | STARTTLS       | 143 / 587                  |
+| Prefix   | Meaning      | Typical port (IMAP / SMTP) |
+| -------- | ------------ | -------------------------- |
+| `ssl://` | Implicit TLS | 993 / 465                  |
+| `tls://` | STARTTLS     | 143 / 587                  |
 
 Examples:
 
