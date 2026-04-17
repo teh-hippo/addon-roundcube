@@ -50,11 +50,10 @@ RUN curl -J -L -o /tmp/roundcube.tar.gz \
     && tar -xzf /tmp/roundcube.tar.gz -C /var/www/roundcube --strip-components=1 \
     && rm -rf /tmp/roundcube.tar.gz /var/www/roundcube/installer
 
-# Install Forward Email plugin via composer
-# NOTE: Change the echo string below to force Docker to re-fetch the plugin
+# Prepare composer for plugin installs at runtime
 WORKDIR /var/www/roundcube
 # hadolint ignore=DL3059
-RUN echo "cache-bust-v11-db-init-tolerant" \
+RUN echo "composer-init-v1" \
     && composer --version \
     && composer config --no-interaction allow-plugins.roundcube/plugin-installer true
 WORKDIR /
