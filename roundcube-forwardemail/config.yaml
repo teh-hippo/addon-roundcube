@@ -2,7 +2,7 @@
 name: Roundcube Forward Email
 version: dev
 slug: roundcube-forwardemail
-description: Adds the Forward Email plugin to the Roundcube Webmail add-on
+description: Catch-all alias & SMTP auto-provisioning for the Roundcube Webmail add-on, via Forward Email
 url: https://github.com/teh-hippo/addon-roundcube
 init: false
 arch:

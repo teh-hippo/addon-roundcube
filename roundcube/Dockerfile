@@ -54,7 +54,7 @@ RUN curl -J -L -o /tmp/roundcube.tar.gz \
 # NOTE: Change the echo string below to force Docker to re-fetch the plugin
 WORKDIR /var/www/roundcube
 # hadolint ignore=DL3059
-RUN echo "cache-bust-v10-split-fe" \
+RUN echo "cache-bust-v11-db-init-tolerant" \
     && composer --version
 WORKDIR /
 

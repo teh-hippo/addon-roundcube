@@ -176,9 +176,25 @@ for f in errors.log console.log sendmail.log; do
     ln -sf /proc/1/fd/2 "/var/www/roundcube/logs/${f}"
 done
 
-# Initialize SQLite database on first run
-if [[ ! -f /data/db/roundcube.db ]]; then
+# Initialize SQLite database on first run.
+#
+# /data is persisted by Supervisor across add-on restarts and in some
+# reinstall paths. Use the presence of Roundcube's `users` table as the
+# authoritative "already initialized" signal rather than just the file, so
+# we never re-run initdb against a populated DB and produce "table ...
+# already exists" errors.
+need_init=true
+if [[ -f /data/db/roundcube.db ]] \
+    && sqlite3 /data/db/roundcube.db \
+        "SELECT 1 FROM users LIMIT 1;" >/dev/null 2>&1; then
+    bashio::log.info "Existing SQLite database detected — skipping schema init"
+    need_init=false
+fi
+
+if [[ "${need_init}" == "true" ]]; then
     bashio::log.info "Initializing SQLite database..."
+    # Clear any half-written file so initdb starts from a clean slate.
+    rm -f /data/db/roundcube.db
     if ! php /var/www/roundcube/bin/initdb.sh --dir=/var/www/roundcube/SQL/ 2>&1; then
         bashio::log.fatal "Database initialization failed"
         exit 1

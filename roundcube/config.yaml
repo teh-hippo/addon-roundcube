@@ -2,7 +2,7 @@
 name: Roundcube Webmail
 version: dev
 slug: roundcube
-description: Roundcube webmail client, exposed via Home Assistant ingress
+description: Roundcube IMAP webmail client, exposed through Home Assistant ingress
 url: https://github.com/teh-hippo/addon-roundcube
 init: false
 arch:
