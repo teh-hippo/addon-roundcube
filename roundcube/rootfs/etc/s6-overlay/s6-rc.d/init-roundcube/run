@@ -12,6 +12,9 @@ declare smtp_port
 declare des_key
 declare ingress_entry
 declare extra_plugins=""
+declare share_plugin_dir="/share/roundcube/plugins"
+declare shared_plugin_names=""
+declare shared_plugin_configs=""
 
 bashio::log.info "Configuring Roundcube..."
 
@@ -34,6 +37,51 @@ if bashio::config.has_value 'plugins'; then
         extra_plugins="${extra_plugins}, '${short_name}'"
     done
     cd - > /dev/null || true
+fi
+
+# Dynamic plugin loader — pick up plugins dropped into the HA shared folder by
+# companion add-ons. Each subdirectory of /share/roundcube/plugins/<name>/
+# becomes a Roundcube plugin IFF it contains a `.ha-plugin-ready` marker file
+# written by the companion add-on after atomic provisioning. If
+# <name>/config.inc.php exists it is included after the main config so
+# companion add-ons can inject settings.
+if [[ -d "${share_plugin_dir}" ]]; then
+    bashio::log.info "Scanning ${share_plugin_dir} for shared plugins..."
+    for plugin_path in "${share_plugin_dir}"/*/; do
+        [[ -d "${plugin_path}" ]] || continue
+        plugin_name=$(basename "${plugin_path}")
+        # Skip names that contain characters we would not want to embed in PHP.
+        if [[ ! "${plugin_name}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+            bashio::log.warning "  Skipping plugin with unsafe name: ${plugin_name}"
+            continue
+        fi
+        # Reject symlinked plugin dirs: /share is writable by any add-on, so a
+        # symlink would let a writer point Roundcube at code outside the
+        # shared-plugins root.
+        if [[ -L "${plugin_path%/}" ]]; then
+            bashio::log.warning "  Skipping symlinked plugin entry: ${plugin_name}"
+            continue
+        fi
+        # Resolve to a real path and re-check containment under share_plugin_dir.
+        resolved=$(realpath -q "${plugin_path%/}" || true)
+        if [[ -z "${resolved}" || "${resolved}" != "${share_plugin_dir}"/* ]]; then
+            bashio::log.warning "  Skipping plugin outside shared root: ${plugin_name}"
+            continue
+        fi
+        # Require a readiness marker so we never pick up half-provisioned trees.
+        if [[ ! -f "${plugin_path}.ha-plugin-ready" ]]; then
+            bashio::log.info "  Skipping ${plugin_name}: no .ha-plugin-ready marker"
+            continue
+        fi
+        target="/var/www/roundcube/plugins/${plugin_name}"
+        rm -rf "${target}"
+        ln -s "${resolved}" "${target}"
+        bashio::log.info "  Linked shared plugin: ${plugin_name}"
+        shared_plugin_names="${shared_plugin_names}, '${plugin_name}'"
+        if [[ -f "${plugin_path}config.inc.php" ]]; then
+            shared_plugin_configs="${shared_plugin_configs}${plugin_path}config.inc.php"$'\n'
+        fi
+    done
 fi
 
 # Ensure persistent data directories exist
@@ -80,60 +128,11 @@ cat > /var/www/roundcube/config/config.inc.php <<RCEOF
 // Identity — allow any From address (needed for catch-all)
 \$config['identities_level'] = 0;
 
-// Plugins — built-in defaults plus any composer-installed plugins
-\$config['plugins'] = ['identity_select', 'archive', 'zipdownload', 'forwardemail'${extra_plugins}];
+// Plugins — built-in defaults plus composer-installed and shared plugins
+\$config['plugins'] = ['identity_select', 'archive', 'zipdownload'${extra_plugins}${shared_plugin_names}];
 
 // identity_select — use Delivered-To header for accurate alias matching
 \$config['identity_select_headers'] = ['Delivered-To', 'X-Original-To'];
-RCEOF
-
-# Append Forward Email plugin defaults when provided via add-on options.
-# These act as server-level defaults; per-user settings still override them.
-#
-# php_escape_sq: escape a string for safe embedding inside a PHP
-# single-quoted literal. PHP single-quoted strings only treat \\ and \'
-# as escape sequences, so both need escaping and nothing else.
-php_escape_sq() {
-    local s=${1//\\/\\\\}
-    printf '%s' "${s//\'/\\\'}"
-}
-
-if bashio::config.has_value 'forwardemail_api_key'; then
-    fe_api_key=$(php_escape_sq "$(bashio::config 'forwardemail_api_key')")
-    cat >> /var/www/roundcube/config/config.inc.php <<PHPEOF
-
-// Forward Email — plaintext API key from add-on configuration
-\$config['forwardemail_api_key_plain'] = '${fe_api_key}';
-PHPEOF
-fi
-if bashio::config.has_value 'forwardemail_domain'; then
-    fe_domain=$(php_escape_sq "$(bashio::config 'forwardemail_domain')")
-    cat >> /var/www/roundcube/config/config.inc.php <<PHPEOF
-\$config['forwardemail_domain'] = '${fe_domain}';
-PHPEOF
-fi
-
-# Coerce bashio bool values to exact PHP literals. Anything that is not the
-# literal string "true" becomes false so a misconfigured option can never
-# inject PHP into the config.
-fe_auto_create_raw=$(bashio::config 'forwardemail_auto_create' 'true')
-fe_auto_delete_raw=$(bashio::config 'forwardemail_auto_delete' 'false')
-[[ "${fe_auto_create_raw}" == "true" ]] && fe_auto_create="true" || fe_auto_create="false"
-[[ "${fe_auto_delete_raw}" == "true" ]] && fe_auto_delete="true" || fe_auto_delete="false"
-
-cat >> /var/www/roundcube/config/config.inc.php <<PHPEOF
-\$config['forwardemail_auto_create'] = ${fe_auto_create};
-\$config['forwardemail_auto_delete'] = ${fe_auto_delete};
-PHPEOF
-
-bashio::log.info "FE config snippet:"
-grep -E "forwardemail" /var/www/roundcube/config/config.inc.php | while IFS= read -r line; do
-    # Mask api key in logs — match anything between the final two quotes on the line.
-    masked=$(echo "$line" | sed -E "s/(api_key_plain[^=]*= ')[^']*(';)/\1***\2/")
-    bashio::log.info "  ${masked}"
-done
-
-cat >> /var/www/roundcube/config/config.inc.php <<RCEOF
 
 // Logging — stdout routes through php-fpm's catch_workers_output to container stderr
 \$config['log_driver'] = 'stdout';
@@ -150,6 +149,23 @@ cat >> /var/www/roundcube/config/config.inc.php <<RCEOF
 // from \$_SERVER headers, so we set the value directly instead.
 \$config['request_path'] = '${ingress_entry}/';
 RCEOF
+
+# Append include lines for each shared plugin's config.inc.php, if present.
+# Each companion add-on is responsible for writing a safe PHP file at that
+# path; we only reference it here so their settings flow into Roundcube.
+if [[ -n "${shared_plugin_configs}" ]]; then
+    while IFS= read -r cfg; do
+        [[ -n "${cfg}" ]] || continue
+        # Escape any single quotes in the path before embedding as a PHP literal.
+        safe_cfg=${cfg//\'/\\\'}
+        cat >> /var/www/roundcube/config/config.inc.php <<PHPEOF
+
+// Shared plugin config injected by companion add-on
+@include '${safe_cfg}';
+PHPEOF
+        bashio::log.info "  Including shared plugin config: ${cfg}"
+    done <<< "${shared_plugin_configs}"
+fi
 
 # Pipe Roundcube log files to container stderr so they appear in addon logs.
 # Symlinks provide belt-and-braces: even if log_driver='stdout' is ignored for
@@ -176,9 +192,3 @@ chown -R root:root /data/db
 bashio::log.info "Roundcube configured."
 bashio::log.info "  IMAP: ${imap_host}:${imap_port}"
 bashio::log.info "  SMTP: ${smtp_host}:${smtp_port}"
-
-# Debug: verify plugin installation
-bashio::log.info "  Plugin dir check:"
-ls -la /var/www/roundcube/plugins/forwardemail/ 2>&1 | while IFS= read -r line; do
-    bashio::log.info "    ${line}"
-done

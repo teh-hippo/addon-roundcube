@@ -2,7 +2,7 @@
 name: Roundcube Webmail
 version: dev
 slug: roundcube
-description: Roundcube webmail in the HA sidebar with Forward Email auto-provisioning
+description: Roundcube webmail client, exposed via Home Assistant ingress
 url: https://github.com/teh-hippo/addon-roundcube
 init: false
 arch:
@@ -15,6 +15,8 @@ panel_title: Webmail
 panel_admin: false
 stage: experimental
 apparmor: false
+map:
+  - share:rw
 options:
   imap_host: ""
   imap_port: 993
@@ -22,10 +24,6 @@ options:
   smtp_port: 465
   log_level: info
   plugins: []
-  forwardemail_api_key: ""
-  forwardemail_domain: ""
-  forwardemail_auto_create: true
-  forwardemail_auto_delete: false
 schema:
   imap_host: str
   imap_port: port
@@ -34,7 +32,3 @@ schema:
   log_level: "list(trace|debug|info|notice|warning|error|fatal)"
   plugins:
     - str
-  forwardemail_api_key: str?
-  forwardemail_domain: str?
-  forwardemail_auto_create: bool?
-  forwardemail_auto_delete: bool?

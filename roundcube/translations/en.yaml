@@ -3,52 +3,24 @@ configuration:
   imap_host:
     name: IMAP Server
     description: >-
-      IMAP server address with protocol prefix.
-      Use ssl:// for implicit TLS or tls:// for STARTTLS.
-      Example: ssl://imap.forwardemail.net
+      IMAP host with prefix. Use ssl:// (implicit TLS, port 993) or tls://
+      (STARTTLS, port 143). Example: ssl://imap.example.com
   imap_port:
     name: IMAP Port
-    description: >-
-      IMAP server port. Typically 993 for SSL/TLS or 143 for STARTTLS.
+    description: Usually 993 (SSL/TLS) or 143 (STARTTLS).
   smtp_host:
     name: SMTP Server
     description: >-
-      SMTP server address with protocol prefix.
-      Use ssl:// for implicit TLS or tls:// for STARTTLS.
-      Example: ssl://smtp.forwardemail.net
+      SMTP host with prefix. Use ssl:// (implicit TLS, port 465) or tls://
+      (STARTTLS, port 587). Example: ssl://smtp.example.com
   smtp_port:
     name: SMTP Port
-    description: >-
-      SMTP server port. Typically 465 for SSL/TLS or 587 for STARTTLS.
+    description: Usually 465 (SSL/TLS) or 587 (STARTTLS).
   log_level:
     name: Log Level
-    description: >-
-      Controls the verbosity of log output.
+    description: Verbosity of add-on log output.
   plugins:
-    name: Additional Roundcube plugins (advanced)
+    name: Additional Roundcube plugins
     description: >-
-      Optional. Composer package names of third-party Roundcube plugins to
-      install at startup, e.g. elm/identity_smtp. Leave empty for the default
-      set. Only needed if you want to extend Roundcube beyond what this add-on
-      ships with.
-  forwardemail_api_key:
-    name: Forward Email API key (optional)
-    description: >-
-      Only fill in if you use Forward Email. API key from
-      https://forwardemail.net/my-account/security. Enables the bundled plugin
-      that auto-provisions aliases and SMTP credentials. Leave blank to disable.
-  forwardemail_domain:
-    name: Forward Email domain (optional)
-    description: >-
-      Domain registered with Forward Email (e.g. example.com). Aliases are
-      created under this domain when you add a new identity in Roundcube.
-  forwardemail_auto_create:
-    name: Auto-create aliases on reply
-    description: >-
-      When enabled, replying to a catch-all address automatically creates
-      the matching alias and identity, with generated SMTP credentials.
-  forwardemail_auto_delete:
-    name: Auto-delete aliases on identity removal
-    description: >-
-      When enabled, removing a Roundcube identity also deletes its alias
-      on Forward Email. Leave disabled unless you understand the risk.
+      Optional. Composer packages to install at startup, e.g.
+      elm/identity_smtp. Advanced; leave empty for the default set.

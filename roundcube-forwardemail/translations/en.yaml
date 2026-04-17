@@ -1,0 +1,25 @@
+---
+configuration:
+  api_key:
+    name: Forward Email API key
+    description: >-
+      API key from https://forwardemail.net/my-account/security. Stored as
+      a password field; required for the plugin to talk to Forward Email.
+  domain:
+    name: Forward Email domain
+    description: >-
+      Domain registered with Forward Email (e.g. example.com). Aliases are
+      created under this domain when you add a new identity in Roundcube.
+  auto_create:
+    name: Auto-create aliases on reply
+    description: >-
+      When enabled, replying to a catch-all address automatically creates
+      the matching alias and identity, with generated SMTP credentials.
+  auto_delete:
+    name: Auto-delete aliases on identity removal
+    description: >-
+      When enabled, removing a Roundcube identity also deletes its alias
+      on Forward Email. Leave off unless you understand the risk.
+  log_level:
+    name: Log Level
+    description: Verbosity of add-on log output.

@@ -1,7 +1,6 @@
 # Roundcube Webmail — Add-on Documentation
 
-This page covers how the **Home Assistant add-on** wraps Roundcube. For
-Roundcube itself — mail client features, keyboard shortcuts, skins, plugin
+For Roundcube itself — mail client features, keyboard shortcuts, skins, plugin
 authoring, general errors — refer to the upstream project:
 
 - [Roundcube user guide](https://roundcube.net/help/)
@@ -11,49 +10,33 @@ authoring, general errors — refer to the upstream project:
 ## What this add-on provides
 
 - Roundcube 1.7 (PHP 8.4, Alpine base) with nginx + PHP-FPM.
-- Exposed through **Home Assistant ingress**, so it appears in the sidebar
-  with no extra ports open.
-- Persistent SQLite database stored under `/data/` (included in HA backups).
-- Optional bundled [Forward Email plugin](https://github.com/teh-hippo/roundcube-forwardemail)
-  that auto-creates aliases and SMTP credentials when you add identities.
+- Exposed through **Home Assistant ingress**; appears in the sidebar with no
+  extra ports open.
+- Persistent SQLite database under `/data/` (included in HA backups).
+- Plugin extension point under `/share/roundcube/plugins/` so companion
+  add-ons (e.g. **Roundcube Forward Email**) can inject extra plugins without
+  a rebuild.
 
 ## Configuration
 
-Configure via **Settings → Add-ons → Roundcube Webmail → Configuration**.
+Settings → Add-ons → Roundcube Webmail → Configuration.
 
-### IMAP / SMTP server
+### IMAP / SMTP
 
-Point the add-on at your provider. Include a protocol prefix:
-
-| Prefix   | Meaning      | Typical port (IMAP / SMTP) |
+| Prefix   | Mode         | Typical port (IMAP / SMTP) |
 | -------- | ------------ | -------------------------- |
 | `ssl://` | Implicit TLS | 993 / 465                  |
 | `tls://` | STARTTLS     | 143 / 587                  |
 
 Examples:
 
-| Provider      | IMAP host                     | SMTP host                     |
-| ------------- | ----------------------------- | ----------------------------- |
-| Forward Email | `ssl://imap.forwardemail.net` | `ssl://smtp.forwardemail.net` |
-| Fastmail      | `ssl://imap.fastmail.com`     | `ssl://smtp.fastmail.com`     |
-| Gmail         | `ssl://imap.gmail.com`        | `ssl://smtp.gmail.com`        |
-| Mailbox.org   | `ssl://imap.mailbox.org`      | `ssl://smtp.mailbox.org`      |
+| Provider    | IMAP host                 | SMTP host                 |
+| ----------- | ------------------------- | ------------------------- |
+| Fastmail    | `ssl://imap.fastmail.com` | `ssl://smtp.fastmail.com` |
+| Gmail       | `ssl://imap.gmail.com`    | `ssl://smtp.gmail.com`    |
+| Mailbox.org | `ssl://imap.mailbox.org`  | `ssl://smtp.mailbox.org`  |
 
-> Changing IMAP/SMTP settings restarts the container in seconds — no rebuild.
-
-### Forward Email integration (optional)
-
-If you use [Forward Email](https://forwardemail.net), filling these fields
-enables the bundled plugin:
-
-- `forwardemail_api_key` — from **My Account → Security** on Forward Email.
-- `forwardemail_domain` — e.g. `example.com`.
-- `forwardemail_auto_create` — create aliases + identities on reply to
-  catch-all addresses.
-- `forwardemail_auto_delete` — remove aliases when the matching identity is
-  deleted. Leave off unless you really want that.
-
-Leave `forwardemail_api_key` blank to disable the plugin entirely.
+Changing IMAP/SMTP settings restarts the container in seconds — no rebuild.
 
 ### Additional Roundcube plugins
 
@@ -66,9 +49,17 @@ plugins:
 
 Plugins are installed at container start. A restart is enough — no rebuild.
 
-## Data persistence
+### Plugin extension point (advanced)
 
-All state lives under `/data/` inside the container:
+Any subdirectory dropped into `/share/roundcube/plugins/<name>/` is picked up
+on Roundcube startup **if** it carries a `.ha-plugin-ready` marker file, is
+not a symlink, and its name matches `^[a-zA-Z0-9_-]+$`. Matching trees are
+symlinked into Roundcube's plugins folder and registered automatically; a
+sibling `config.inc.php` is included after the main Roundcube config. This
+is how companion add-ons (e.g. Roundcube Forward Email) extend Roundcube
+without rebuilding this image.
+
+## Data persistence
 
 - `/data/db/roundcube.db` — SQLite (identities, contacts, preferences).
 - `/data/des_key` — encryption key, generated once on first start.
@@ -83,9 +74,9 @@ at the top of this document. The items below are specific to the HA add-on.
 
 ### The add-on won't start
 
-- Check **Log** tab for PHP-FPM or nginx errors.
-- If you just changed the `plugins` list, a failed composer fetch will stop
-  startup. Restart after removing the offending package.
+- Check the **Log** tab for PHP-FPM or nginx errors.
+- If you changed the `plugins` list, a failed composer fetch stops startup.
+  Restart after removing the offending package.
 
 ### Sidebar shows a blank page or 502
 
@@ -96,22 +87,11 @@ at the top of this document. The items below are specific to the HA add-on.
 
 - Verify the IMAP host prefix (`ssl://` vs `tls://`) and port match your
   provider.
-- For Forward Email, the password is the **SMTP password for the alias**,
-  not the Forward Email account password.
 - If the provider requires app-specific passwords (Gmail, Fastmail), you
   must generate one on their end.
 
-### Forward Email plugin not provisioning
-
-- Confirm `forwardemail_api_key` and `forwardemail_domain` are set.
-- Check add-on log for `[forwardemail]` entries and API errors.
-- API key validity: run from HA Terminal:
-  ```
-  curl -u 'YOUR_API_KEY:' https://api.forwardemail.net/v1/domains
-  ```
-
 ### I changed config — do I need to rebuild?
 
-**No.** Changing any Configuration option triggers a fast container restart
-(seconds). A full rebuild is only needed when the add-on version changes
-(Dockerfile / rootfs updates).
+**No.** Configuration changes trigger a fast container restart (seconds).
+A full rebuild is only needed when the add-on version changes (Dockerfile
+or rootfs updates).

@@ -1,0 +1,26 @@
+---
+name: Roundcube Forward Email
+version: dev
+slug: roundcube-forwardemail
+description: Adds the Forward Email plugin to the Roundcube Webmail add-on
+url: https://github.com/teh-hippo/addon-roundcube
+init: false
+arch:
+  - aarch64
+  - amd64
+stage: experimental
+apparmor: false
+map:
+  - share:rw
+options:
+  api_key: ""
+  domain: ""
+  auto_create: true
+  auto_delete: false
+  log_level: info
+schema:
+  api_key: password?
+  domain: str?
+  auto_create: bool?
+  auto_delete: bool?
+  log_level: "list(trace|debug|info|notice|warning|error|fatal)"

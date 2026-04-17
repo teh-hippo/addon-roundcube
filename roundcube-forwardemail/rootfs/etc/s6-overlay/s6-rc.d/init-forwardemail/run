@@ -1,0 +1,123 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Home Assistant Add-on: Roundcube Forward Email
+# Provisions the Forward Email plugin into the shared plugin folder so the
+# Roundcube Webmail add-on can pick it up.
+# ==============================================================================
+
+declare api_key
+declare domain
+declare auto_create_raw
+declare auto_delete_raw
+declare auto_create_php
+declare auto_delete_php
+declare api_key_php
+declare domain_php
+declare -r plugin_repo="https://github.com/teh-hippo/roundcube-forwardemail.git"
+# Pin to a specific commit to avoid silently pulling new upstream code into
+# Roundcube every restart. Bump intentionally when rolling forward.
+declare -r plugin_ref="ad070517ca81c4ce90c7ab8a5185ffa398e043a0"
+declare -r plugin_root="/share/roundcube/plugins"
+declare -r plugin_dir="${plugin_root}/forwardemail"
+declare -r plugin_staging="${plugin_root}/.forwardemail.staging.$$"
+declare -r plugin_previous="${plugin_root}/.forwardemail.previous"
+declare -r marker_name=".ha-plugin-ready"
+
+cleanup() {
+    rm -rf "${plugin_staging}" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+bashio::log.info "Provisioning Forward Email plugin..."
+
+if ! bashio::config.has_value 'api_key'; then
+    bashio::log.fatal "api_key is required."
+    exit 1
+fi
+if ! bashio::config.has_value 'domain'; then
+    bashio::log.fatal "domain is required."
+    exit 1
+fi
+
+api_key=$(bashio::config 'api_key')
+domain=$(bashio::config 'domain')
+auto_create_raw=$(bashio::config 'auto_create')
+auto_delete_raw=$(bashio::config 'auto_delete')
+
+[[ "${auto_create_raw}" == "false" ]] && auto_create_php="false" || auto_create_php="true"
+[[ "${auto_delete_raw}" == "true" ]] && auto_delete_php="true" || auto_delete_php="false"
+
+# Escape a value so it can safely sit inside a PHP single-quoted string.
+# PHP only interprets \\ and \' within single quotes.
+php_escape_sq() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\'/\\\'}"
+    printf '%s' "$s"
+}
+
+mkdir -p "${plugin_root}"
+rm -rf "${plugin_staging}"
+
+# Fetch into a staging directory. Roundcube only loads plugins that carry a
+# .ha-plugin-ready marker, so the partial tree is invisible until the swap.
+bashio::log.info "Cloning plugin source (pinned ${plugin_ref:0:12})..."
+if ! git clone --quiet "${plugin_repo}" "${plugin_staging}"; then
+    bashio::log.fatal "Failed to clone ${plugin_repo}"
+    exit 1
+fi
+if ! git -C "${plugin_staging}" checkout --quiet "${plugin_ref}"; then
+    bashio::log.fatal "Failed to checkout ${plugin_ref}"
+    exit 1
+fi
+rm -rf "${plugin_staging}/.git"
+
+if [[ -f "${plugin_staging}/composer.json" ]]; then
+    bashio::log.info "Installing plugin composer dependencies..."
+    (cd "${plugin_staging}" && composer install --no-dev --no-interaction --optimize-autoloader 2>&1) \
+        || bashio::log.warning "composer install reported errors."
+fi
+
+bashio::log.info "Writing plugin config..."
+api_key_php=$(php_escape_sq "${api_key}")
+domain_php=$(php_escape_sq "${domain}")
+
+cat > "${plugin_staging}/config.inc.php" <<PHPEOF
+<?php
+// Managed by the Roundcube Forward Email add-on — edits will be overwritten.
+
+\$config['forwardemail_api_key']     = '${api_key_php}';
+\$config['forwardemail_domain']      = '${domain_php}';
+\$config['forwardemail_auto_create'] = ${auto_create_php};
+\$config['forwardemail_auto_delete'] = ${auto_delete_php};
+PHPEOF
+chmod 0640 "${plugin_staging}/config.inc.php"
+
+# Write the readiness marker last so partial staging trees are never picked up.
+touch "${plugin_staging}/${marker_name}"
+
+# Atomically swap the live tree. rename(2) is atomic within a single filesystem,
+# so the consumer side will only ever see the old tree or the fully-written new
+# one, never a half-written mix.
+rm -rf "${plugin_previous}"
+if [[ -e "${plugin_dir}" ]]; then
+    mv "${plugin_dir}" "${plugin_previous}"
+fi
+if ! mv "${plugin_staging}" "${plugin_dir}"; then
+    bashio::log.fatal "Failed to activate plugin tree."
+    # Attempt to restore previous tree so Roundcube is not left empty-handed.
+    if [[ -e "${plugin_previous}" ]]; then
+        mv "${plugin_previous}" "${plugin_dir}" || true
+    fi
+    exit 1
+fi
+rm -rf "${plugin_previous}"
+
+api_key_mask="${api_key:0:4}…${api_key: -2}"
+bashio::log.info "Plugin provisioned at ${plugin_dir}"
+bashio::log.info "  domain:      ${domain}"
+bashio::log.info "  api_key:     ${api_key_mask}"
+bashio::log.info "  auto_create: ${auto_create_php}"
+bashio::log.info "  auto_delete: ${auto_delete_php}"
+bashio::log.notice "Restart the Roundcube Webmail add-on to load plugin changes."
