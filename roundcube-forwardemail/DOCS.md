@@ -29,21 +29,48 @@ never sees a half-written tree. No rebuild needed.
 
 Settings → Add-ons → Roundcube Forward Email → Configuration.
 
-- **API key** — generate under **My Account → Security** on
-  [forwardemail.net](https://forwardemail.net/my-account/security). Required.
+- **API key** — *optional*. Generate under **My Account → Security** on
+  [forwardemail.net](https://forwardemail.net/my-account/security). Leave
+  blank to use **shared-credential mode** (see below).
 - **Domain** — the domain you have registered with Forward Email. Required.
   Must be the bare domain (e.g. `example.com`) — not an email address.
-- **Auto-create aliases on reply** — default on. Recommended for the
-  catch-all workflow.
-- **Auto-delete aliases on identity removal** — default off. Leave off
-  unless you really want identity deletion to nuke the alias on the Forward
-  Email side too.
+- **Pre-fill From on reply** — default on. Recommended for the catch-all
+  workflow.
+- **Auto-delete aliases on identity removal** — default off. Only
+  meaningful in API-key mode.
 - **Autologin** — default off. When on, `autologin_user` and
   `autologin_password` must be set and Roundcube will skip its login screen.
   See the **Autologin** section below for the security tradeoff.
 - **Autologin user / password** — the full email and IMAP/SMTP password to
   log in as. Generate the password from the Forward Email dashboard
   (**Domain → Aliases → Generate Password**).
+
+### Modes
+
+The add-on supports two deployment patterns:
+
+#### Shared-credential mode (recommended)
+
+*Leave the API key blank.* Create a single **wildcard alias** `*@yourdomain`
+on Forward Email, generate an SMTP password for it, and put the wildcard
+alias address + password into the autologin fields.
+
+On reply to a catch-all address, the plugin pre-fills **From** with the
+original recipient address and creates a local Roundcube identity. Sending
+uses the wildcard alias's authenticated SMTP session — Forward Email
+accepts any `From` on the domain because the wildcard alias owns all of
+them. Inbound mail goes through the catch-all exactly as before.
+
+No alias churn on Forward Email, no per-reply API calls, no stored
+per-identity credentials.
+
+#### Per-alias API mode
+
+*Provide an API key.* On reply, the plugin creates a dedicated alias for
+the original recipient via the Forward Email API, generates SMTP
+credentials for it, and stores them in Roundcube's prefs. Use this if you
+specifically want each reply-as address to exist as its own FE alias with
+its own mailbox.
 
 ### Logging in — mailbox setup
 

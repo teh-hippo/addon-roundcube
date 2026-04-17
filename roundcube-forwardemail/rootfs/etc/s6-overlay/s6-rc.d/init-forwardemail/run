@@ -23,7 +23,7 @@ declare autologin_password_php
 declare -r plugin_repo="https://github.com/teh-hippo/roundcube-forwardemail.git"
 # Pin to a specific commit to avoid silently pulling new upstream code into
 # Roundcube every restart. Bump intentionally when rolling forward.
-declare -r plugin_ref="a6fceefe1169a2c4429dc8bb6a3efdbdf77310bf"
+declare -r plugin_ref="648920667fb706a649575d0a4c08174f37894c6a"
 declare -r plugin_root="/share/roundcube/plugins"
 declare -r plugin_dir="${plugin_root}/forwardemail"
 declare -r plugin_staging="${plugin_root}/.forwardemail.staging.$$"
@@ -37,10 +37,6 @@ trap cleanup EXIT
 
 bashio::log.info "Provisioning Forward Email plugin..."
 
-if ! bashio::config.has_value 'api_key'; then
-    bashio::log.fatal "api_key is required."
-    exit 1
-fi
 if ! bashio::config.has_value 'domain'; then
     bashio::log.fatal "domain is required."
     exit 1
@@ -154,10 +150,17 @@ if ! mv "${plugin_staging}" "${plugin_dir}"; then
 fi
 rm -rf "${plugin_previous}"
 
-api_key_mask="${api_key:0:4}…${api_key: -2}"
+api_key_mask=""
+if [[ -n "${api_key}" ]]; then
+    api_key_mask="${api_key:0:4}…${api_key: -2}"
+fi
 bashio::log.info "Plugin provisioned at ${plugin_dir}"
 bashio::log.info "  domain:      ${domain}"
-bashio::log.info "  api_key:     ${api_key_mask}"
+if [[ -n "${api_key_mask}" ]]; then
+    bashio::log.info "  api_key:     ${api_key_mask} (per-alias API mode)"
+else
+    bashio::log.info "  api_key:     (none — shared credential mode)"
+fi
 bashio::log.info "  auto_create: ${auto_create_php}"
 bashio::log.info "  auto_delete: ${auto_delete_php}"
 bashio::log.info "  autologin:   ${autologin_php}"

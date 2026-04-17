@@ -1,20 +1,23 @@
 ---
 configuration:
   api_key:
-    name: Forward Email API key
+    name: Forward Email API key (optional)
     description: >-
-      API key from https://forwardemail.net/my-account/security. Stored as
-      a password field; required for the plugin to talk to Forward Email.
+      API key from https://forwardemail.net/my-account/security. Leave blank
+      if you use a wildcard alias (*@domain) with SMTP credentials for all
+      outbound — in that case the add-on skips the per-alias API dance and
+      relies on the auto-login credentials below.
   domain:
     name: Forward Email domain
     description: >-
       Domain registered with Forward Email (e.g. example.com). Aliases are
       created under this domain when you add a new identity in Roundcube.
   auto_create:
-    name: Auto-create aliases on reply
+    name: Pre-fill From on reply
     description: >-
-      When enabled, replying to a catch-all address automatically creates
-      the matching alias and identity, with generated SMTP credentials.
+      When enabled, replying to a catch-all address pre-fills the From
+      field with that address and creates a matching identity. In API-key
+      mode, also provisions the alias + SMTP credentials on Forward Email.
   auto_delete:
     name: Auto-delete aliases on identity removal
     description: >-
