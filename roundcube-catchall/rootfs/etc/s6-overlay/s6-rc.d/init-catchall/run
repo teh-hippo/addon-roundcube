@@ -23,11 +23,11 @@ declare fe_api_key_php
 declare -r plugin_repo="https://github.com/teh-hippo/roundcube-catchall.git"
 # Pin to a specific commit to avoid silently pulling new upstream code into
 # Roundcube every restart. Bump intentionally when rolling forward.
-declare -r plugin_ref="7304fde131aa95088db785bb1c639fe96cc918f2"
+declare -r plugin_ref="a7b5b5d06affa8bf950d326e96e8665534583007"
 declare -r plugin_root="/share/roundcube/plugins"
-declare -r plugin_dir="${plugin_root}/catchall"
-declare -r plugin_staging="${plugin_root}/.catchall.staging.$$"
-declare -r plugin_previous="${plugin_root}/.catchall.previous"
+declare -r plugin_dir="${plugin_root}/roundcube_catchall"
+declare -r plugin_staging="${plugin_root}/.roundcube_catchall.staging.$$"
+declare -r plugin_previous="${plugin_root}/.roundcube_catchall.previous"
 declare -r marker_name=".ha-plugin-ready"
 
 cleanup() {
@@ -151,9 +151,10 @@ if ! mv "${plugin_staging}" "${plugin_dir}"; then
 fi
 rm -rf "${plugin_previous}"
 
-# Clean up any leftover tree from the legacy forwardemail add-on so Roundcube
-# does not accidentally load both plugins on the next restart.
-rm -rf "${plugin_root}/forwardemail" "${plugin_root}/.forwardemail.previous" 2>/dev/null || true
+# Clean up leftover trees from prior names so Roundcube does not accidentally
+# load more than one copy of the plugin on the next restart.
+rm -rf "${plugin_root}/forwardemail" "${plugin_root}/.forwardemail.previous" \
+       "${plugin_root}/catchall" "${plugin_root}/.catchall.previous" 2>/dev/null || true
 
 fe_api_key_mask=""
 if [[ -n "${fe_api_key}" ]]; then
