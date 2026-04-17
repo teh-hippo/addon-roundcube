@@ -22,11 +22,14 @@ ingress_entry=$(bashio::addon.ingress_entry)
 # `teh-hippo/roundcube-catchall`). Plugin installer renames the vendor path to
 # `plugins/<name>` with hyphens converted to underscores.
 declare -a plugin_packages=()
+bashio::log.info "DEBUG plugins raw: $(bashio::config 'plugins' 2>&1)"
+bashio::log.info "DEBUG plugins has_value: $(bashio::config.has_value 'plugins' && echo yes || echo no)"
 if bashio::config.has_value 'plugins'; then
     while IFS= read -r plugin; do
         [[ -n "${plugin}" ]] && plugin_packages+=("${plugin}")
     done < <(bashio::config 'plugins|.[]')
 fi
+bashio::log.info "DEBUG plugin_packages: ${plugin_packages[*]}"
 
 if [[ ${#plugin_packages[@]} -gt 0 ]]; then
     bashio::log.info "Installing additional plugins via composer..."
