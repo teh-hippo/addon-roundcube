@@ -33,16 +33,28 @@ fi
 if [[ ${#plugin_packages[@]} -gt 0 ]]; then
     bashio::log.info "Installing additional plugins via composer..."
     cd /var/www/roundcube || exit 1
+    # Allow dev-stability packages (for packages without tagged releases).
+    composer config --no-interaction minimum-stability dev >/dev/null 2>&1 || true
+    composer config --no-interaction prefer-stable true >/dev/null 2>&1 || true
     for plugin in "${plugin_packages[@]}"; do
-        bashio::log.info "  Installing plugin: ${plugin}"
+        # If the user supplied a version constraint (pkg:constraint) honour it;
+        # otherwise default to ^0 which matches the latest tag.
+        if [[ "${plugin}" == *:* ]]; then
+            spec="${plugin}"
+            short_source="${plugin%%:*}"
+        else
+            spec="${plugin}"
+            short_source="${plugin}"
+        fi
+        bashio::log.info "  Installing plugin: ${spec}"
         # Roundcube's own composer.json pulls kolab/net_ldap3 which requires
         # the ldap PHP extension. Our image deliberately ships without it, so
         # tell composer to accept the missing platform req only for ldap.
-        composer require "${plugin}" \
+        composer require "${spec}" \
             --no-interaction --update-no-dev --optimize-autoloader \
             --ignore-platform-req=ext-ldap 2>&1 \
-            || bashio::log.warning "  Failed to install plugin: ${plugin}"
-        short_name="${plugin##*/}"
+            || bashio::log.warning "  Failed to install plugin: ${spec}"
+        short_name="${short_source##*/}"
         short_name="${short_name//-/_}"
         extra_plugins="${extra_plugins}, '${short_name}'"
     done
