@@ -1,6 +1,6 @@
 ---
 name: Roundcube Webmail
-version: dev
+version: dev-fe8
 slug: roundcube
 description: Roundcube webmail client for any IMAP server
 url: https://github.com/teh-hippo/addon-roundcube
@@ -31,6 +31,10 @@ options:
   keyfile: privkey.pem
   log_level: info
   plugins: []
+  forwardemail_api_key: ""
+  forwardemail_domain: ""
+  forwardemail_auto_create: true
+  forwardemail_auto_delete: false
 schema:
   imap_host: str
   imap_port: port
@@ -42,3 +46,7 @@ schema:
   log_level: "list(trace|debug|info|notice|warning|error|fatal)"
   plugins:
     - str
+  forwardemail_api_key: str?
+  forwardemail_domain: str?
+  forwardemail_auto_create: bool?
+  forwardemail_auto_delete: bool?

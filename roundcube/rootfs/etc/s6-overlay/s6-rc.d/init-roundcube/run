@@ -85,9 +85,43 @@ cat > /var/www/roundcube/config/config.inc.php <<RCEOF
 
 // identity_select — use Delivered-To header for accurate alias matching
 \$config['identity_select_headers'] = ['Delivered-To', 'X-Original-To'];
+RCEOF
 
-// Logging — stdout for container/s6 integration
+# Append Forward Email plugin defaults when provided via add-on options.
+# These act as server-level defaults; per-user settings still override them.
+if bashio::config.has_value 'forwardemail_api_key'; then
+    fe_api_key=$(bashio::config 'forwardemail_api_key')
+    cat >> /var/www/roundcube/config/config.inc.php <<PHPEOF
+
+// Forward Email — plaintext API key from add-on configuration
+\$config['forwardemail_api_key_plain'] = '${fe_api_key//\'/\\\'}';
+PHPEOF
+fi
+if bashio::config.has_value 'forwardemail_domain'; then
+    fe_domain=$(bashio::config 'forwardemail_domain')
+    cat >> /var/www/roundcube/config/config.inc.php <<PHPEOF
+\$config['forwardemail_domain'] = '${fe_domain//\'/\\\'}';
+PHPEOF
+fi
+fe_auto_create=$(bashio::config 'forwardemail_auto_create' 'true')
+fe_auto_delete=$(bashio::config 'forwardemail_auto_delete' 'false')
+cat >> /var/www/roundcube/config/config.inc.php <<PHPEOF
+\$config['forwardemail_auto_create'] = ${fe_auto_create};
+\$config['forwardemail_auto_delete'] = ${fe_auto_delete};
+PHPEOF
+
+bashio::log.info "FE config snippet:"
+grep -E "forwardemail" /var/www/roundcube/config/config.inc.php | while IFS= read -r line; do
+    # Mask api key in logs
+    masked=$(echo "$line" | sed -E "s/(api_key_plain.*')[^']+(';)/\1***\2/")
+    bashio::log.info "  ${masked}"
+done
+
+cat >> /var/www/roundcube/config/config.inc.php <<RCEOF
+
+// Logging — stdout routes through php-fpm's catch_workers_output to container stderr
 \$config['log_driver'] = 'stdout';
+\$config['per_user_logging'] = false;
 \$config['smtp_log'] = false;
 
 // UI
@@ -100,6 +134,15 @@ cat > /var/www/roundcube/config/config.inc.php <<RCEOF
 // from \$_SERVER headers, so we set the value directly instead.
 \$config['request_path'] = '${ingress_entry}/';
 RCEOF
+
+# Pipe Roundcube log files to container stderr so they appear in addon logs.
+# Symlinks provide belt-and-braces: even if log_driver='stdout' is ignored for
+# some code paths, file-based writes still reach the container log.
+mkdir -p /var/www/roundcube/logs
+for f in errors.log console.log sendmail.log; do
+    rm -f "/var/www/roundcube/logs/${f}"
+    ln -sf /proc/1/fd/2 "/var/www/roundcube/logs/${f}"
+done
 
 # Initialize SQLite database on first run
 if [[ ! -f /data/db/roundcube.db ]]; then

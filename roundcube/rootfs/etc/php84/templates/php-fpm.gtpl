@@ -9,3 +9,5 @@ pm.min_spare_servers = 2
 pm.max_spare_servers = 5
 pm.max_requests = 1024
 clear_env = no
+catch_workers_output = yes
+decorate_workers_output = no

@@ -25,4 +25,10 @@ if bashio::var.has_value "$(bashio::addon.port 80)"; then
             -out /etc/php84/php-fpm.d/www.conf
 fi
 
+# Ensure php-fpm errors also flow to container stderr
+if [[ -f /etc/php84/php-fpm.conf ]]; then
+    sed -i -E 's|^;?error_log\s*=.*|error_log = /proc/self/fd/2|' /etc/php84/php-fpm.conf || true
+    sed -i -E 's|^;?log_limit\s*=.*|log_limit = 8192|' /etc/php84/php-fpm.conf || true
+fi
+
 bashio::log.info "PHP-FPM configured."
