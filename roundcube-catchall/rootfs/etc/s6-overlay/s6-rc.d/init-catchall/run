@@ -11,19 +11,15 @@ declare identity_autocreate_raw
 declare autologin_raw
 declare autologin_user
 declare autologin_password
-declare fe_api_key
-declare fe_auto_delete_raw
 declare identity_autocreate_php
 declare autologin_php
-declare fe_auto_delete_php
 declare domain_php
 declare autologin_user_php
 declare autologin_password_php
-declare fe_api_key_php
 declare -r plugin_repo="https://github.com/teh-hippo/roundcube-catchall.git"
 # Pin to a specific commit to avoid silently pulling new upstream code into
 # Roundcube every restart. Bump intentionally when rolling forward.
-declare -r plugin_ref="a7b5b5d06affa8bf950d326e96e8665534583007"
+declare -r plugin_ref="088468f36cc0a5d5162e9eef8aa1fc35e101326d"
 declare -r plugin_root="/share/roundcube/plugins"
 declare -r plugin_dir="${plugin_root}/roundcube_catchall"
 declare -r plugin_staging="${plugin_root}/.roundcube_catchall.staging.$$"
@@ -37,27 +33,28 @@ trap cleanup EXIT
 
 bashio::log.info "Provisioning catch-all plugin..."
 
-if ! bashio::config.has_value 'domain'; then
-    bashio::log.fatal "domain is required."
-    exit 1
+if bashio::config.has_value 'domain'; then
+    domain=$(bashio::config 'domain')
+else
+    domain=""
 fi
-
-domain=$(bashio::config 'domain')
 identity_autocreate_raw=$(bashio::config 'identity_autocreate')
 autologin_raw=$(bashio::config 'autologin')
 autologin_user=$(bashio::config 'autologin_user')
 autologin_password=$(bashio::config 'autologin_password')
-fe_api_key=$(bashio::config 'forward_email_api_key')
-fe_auto_delete_raw=$(bashio::config 'forward_email_auto_delete')
 
-if [[ "${domain}" == *"@"* ]]; then
-    bashio::log.fatal "domain must be a bare domain (e.g. 'example.com'), not an email address."
-    bashio::log.fatal "  got: '${domain}'"
-    exit 1
-fi
-if [[ "${domain}" != *.* ]]; then
-    bashio::log.fatal "domain must be a fully-qualified domain (contain a dot), got: '${domain}'"
-    exit 1
+# Allow domain to be omitted — the plugin will derive it from the logged-in
+# user's email when empty. Still validate the shape when one is provided.
+if [[ -n "${domain}" ]]; then
+    if [[ "${domain}" == *"@"* ]]; then
+        bashio::log.fatal "domain must be a bare domain (e.g. 'example.com'), not an email address."
+        bashio::log.fatal "  got: '${domain}'"
+        exit 1
+    fi
+    if [[ "${domain}" != *.* ]]; then
+        bashio::log.fatal "domain must be a fully-qualified domain (contain a dot), got: '${domain}'"
+        exit 1
+    fi
 fi
 
 if [[ "${autologin_raw}" == "true" ]]; then
@@ -66,7 +63,7 @@ if [[ "${autologin_raw}" == "true" ]]; then
         bashio::log.fatal "  Set both, or disable autologin."
         exit 1
     fi
-    if [[ "${autologin_user}" != *"@${domain}" ]]; then
+    if [[ -n "${domain}" && "${autologin_user}" != *"@${domain}" ]]; then
         bashio::log.warning "autologin_user '${autologin_user}' is not on domain '${domain}'."
     fi
     autologin_php="true"
@@ -75,7 +72,6 @@ else
 fi
 
 [[ "${identity_autocreate_raw}" == "false" ]] && identity_autocreate_php="false" || identity_autocreate_php="true"
-[[ "${fe_auto_delete_raw}" == "true" ]] && fe_auto_delete_php="true" || fe_auto_delete_php="false"
 
 # Escape a value so it can safely sit inside a PHP single-quoted string.
 # PHP only interprets \\ and \' within single quotes.
@@ -112,7 +108,6 @@ bashio::log.info "Writing plugin config..."
 domain_php=$(php_escape_sq "${domain}")
 autologin_user_php=$(php_escape_sq "${autologin_user}")
 autologin_password_php=$(php_escape_sq "${autologin_password}")
-fe_api_key_php=$(php_escape_sq "${fe_api_key}")
 
 cat > "${plugin_staging}/config.inc.php" <<PHPEOF
 <?php
@@ -123,11 +118,6 @@ cat > "${plugin_staging}/config.inc.php" <<PHPEOF
 \$config['catchall_autologin']            = ${autologin_php};
 \$config['catchall_autologin_user']       = '${autologin_user_php}';
 \$config['catchall_autologin_pass']       = '${autologin_password_php}';
-
-// Forward Email integration (optional). When the API key is empty the plugin
-// stays in shared-credential mode and none of the FE-specific paths run.
-\$config['catchall_fe_api_key_plain']     = '${fe_api_key_php}';
-\$config['catchall_fe_auto_delete']       = ${fe_auto_delete_php};
 PHPEOF
 chmod 0640 "${plugin_staging}/config.inc.php"
 
@@ -156,21 +146,15 @@ rm -rf "${plugin_previous}"
 rm -rf "${plugin_root}/forwardemail" "${plugin_root}/.forwardemail.previous" \
        "${plugin_root}/catchall" "${plugin_root}/.catchall.previous" 2>/dev/null || true
 
-fe_api_key_mask=""
-if [[ -n "${fe_api_key}" ]]; then
-    fe_api_key_mask="${fe_api_key:0:4}…${fe_api_key: -2}"
-fi
 bashio::log.info "Plugin provisioned at ${plugin_dir}"
-bashio::log.info "  domain:              ${domain}"
+if [[ -n "${domain}" ]]; then
+    bashio::log.info "  domain:              ${domain}"
+else
+    bashio::log.info "  domain:              (derived at runtime from the logged-in user)"
+fi
 bashio::log.info "  identity_autocreate: ${identity_autocreate_php}"
 bashio::log.info "  autologin:           ${autologin_php}"
 if [[ "${autologin_php}" == "true" ]]; then
     bashio::log.info "  autologin_user:      ${autologin_user}"
-fi
-if [[ -n "${fe_api_key_mask}" ]]; then
-    bashio::log.info "  forward_email:       ${fe_api_key_mask} (per-alias API mode)"
-    bashio::log.info "  fe_auto_delete:      ${fe_auto_delete_php}"
-else
-    bashio::log.info "  forward_email:       (none — shared credential mode)"
 fi
 bashio::log.notice "Restart the Roundcube Webmail add-on to load plugin changes."

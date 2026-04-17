@@ -1,10 +1,5 @@
 ---
 configuration:
-  domain:
-    name: Mail domain
-    description: >-
-      Bare domain (e.g. example.com) used by the catch-all setup. Any address
-      under this domain is treated as belonging to the logged-in user.
   identity_autocreate:
     name: Pre-fill From on reply
     description: >-
@@ -20,25 +15,13 @@ configuration:
     name: Auto-login email
     description: >-
       Full email address to auto-login as (e.g. inbox@example.com, or a
-      wildcard *@example.com). Must be on the configured domain. Required
-      when "Skip Roundcube login screen" is enabled.
+      wildcard *@example.com). The catch-all domain is derived from this
+      address. Required when "Skip Roundcube login screen" is enabled.
   autologin_password:
     name: Auto-login password
     description: >-
       IMAP/SMTP password for the auto-login email. Required when "Skip
       Roundcube login screen" is enabled.
-  forward_email_api_key:
-    name: Forward Email API key (optional)
-    description: >-
-      Only set this if you want per-alias provisioning against Forward Email.
-      Leave blank for shared-credential mode (single wildcard alias + SMTP
-      password covers all outbound). Generate from
-      https://forwardemail.net/my-account/security.
-  forward_email_auto_delete:
-    name: Forward Email - auto-delete aliases
-    description: >-
-      When enabled, removing a Roundcube identity also deletes the matching
-      Forward Email alias. Only meaningful when an API key is set.
   log_level:
     name: Log Level
     description: Verbosity of add-on log output.

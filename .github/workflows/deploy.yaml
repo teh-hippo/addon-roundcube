@@ -28,5 +28,9 @@ jobs:
       contents: read
       packages: write
     uses: hassio-addons/workflows/.github/workflows/app-deploy.yaml@3846ae0fd09acec8ac1ac308ceacd052b9d01bec # v2.0.6
+    # The "publish to edge" job inside this reusable workflow dispatches to
+    # teh-hippo/repository-edge so bleeding-edge users can subscribe to an
+    # always-latest add-on index. The repo exists as a stub solely for that
+    # dispatch to succeed; nothing actually consumes the events.
     secrets:
       DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
