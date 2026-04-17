@@ -42,3 +42,24 @@ configuration:
     description: >-
       List of composer package names to install at startup.
       Example: elm/identity_smtp
+  forwardemail_api_key:
+    name: Forward Email API key
+    description: >-
+      API key from https://forwardemail.net/my-account/security. Leave blank
+      if you are not using Forward Email. Enables the bundled plugin that
+      auto-provisions aliases and SMTP credentials.
+  forwardemail_domain:
+    name: Forward Email domain
+    description: >-
+      Domain registered with Forward Email (e.g. example.com). Aliases are
+      created under this domain when you add a new identity in Roundcube.
+  forwardemail_auto_create:
+    name: Auto-create aliases on reply
+    description: >-
+      When enabled, replying to a catch-all address automatically creates
+      the matching alias and identity, with generated SMTP credentials.
+  forwardemail_auto_delete:
+    name: Auto-delete aliases on identity removal
+    description: >-
+      When enabled, removing a Roundcube identity also deletes its alias
+      on Forward Email. Leave disabled unless you understand the risk.

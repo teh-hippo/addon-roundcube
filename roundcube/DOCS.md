@@ -1,99 +1,126 @@
-# Roundcube Webmail — Documentation
+# Roundcube Webmail — Add-on Documentation
 
-## About
+This page covers how the **Home Assistant add-on** wraps Roundcube. For
+Roundcube itself — mail client features, keyboard shortcuts, skins, plugin
+authoring, general errors — refer to the upstream project:
 
-This add-on provides [Roundcube](https://roundcube.net/), a browser-based IMAP
-email client, running inside Home Assistant. It connects to any standard
-IMAP/SMTP server and is accessible via the HA sidebar (ingress) or an optional
-direct port.
+- [Roundcube user guide](https://roundcube.net/help/)
+- [Roundcube wiki & FAQ](https://github.com/roundcube/roundcubemail/wiki)
+- [Roundcube issue tracker](https://github.com/roundcube/roundcubemail/issues)
+
+## What this add-on provides
+
+- Roundcube 1.7 (PHP 8.4, Alpine base) with nginx + PHP-FPM.
+- Exposed through **Home Assistant ingress**, so it appears in the sidebar
+  with no extra ports open.
+- Persistent SQLite database stored under `/data/` (included in HA backups).
+- Optional bundled [Forward Email plugin](https://github.com/teh-hippo/roundcube-forwardemail)
+  that auto-creates aliases and SMTP credentials when you add identities.
 
 ## Configuration
 
-### IMAP and SMTP
+Configure via **Settings → Add-ons → Roundcube Webmail → Configuration**.
 
-Set `imap_host` and `smtp_host` to your email provider's server addresses.
-Use `ssl://` prefix for implicit TLS or `tls://` for STARTTLS.
+### IMAP / SMTP server
 
-**Examples:**
+Point the add-on at your provider. Include a protocol prefix:
 
-| Provider      | IMAP Host                     | SMTP Host                     |
+| Prefix   | Meaning        | Typical port (IMAP / SMTP) |
+| -------- | -------------- | -------------------------- |
+| `ssl://` | Implicit TLS   | 993 / 465                  |
+| `tls://` | STARTTLS       | 143 / 587                  |
+
+Examples:
+
+| Provider      | IMAP host                     | SMTP host                     |
 | ------------- | ----------------------------- | ----------------------------- |
 | Forward Email | `ssl://imap.forwardemail.net` | `ssl://smtp.forwardemail.net` |
 | Fastmail      | `ssl://imap.fastmail.com`     | `ssl://smtp.fastmail.com`     |
 | Gmail         | `ssl://imap.gmail.com`        | `ssl://smtp.gmail.com`        |
 | Mailbox.org   | `ssl://imap.mailbox.org`      | `ssl://smtp.mailbox.org`      |
 
-### Direct Port Access
+> Changing IMAP/SMTP settings restarts the container in seconds — no rebuild.
 
-By default, Roundcube is accessible only through HA ingress (sidebar).
-To enable direct access on port 80:
+### Forward Email integration (optional)
 
-1. In the add-on configuration, map port `80/tcp` to a host port
-2. Optionally enable SSL and provide certificate paths
+If you use [Forward Email](https://forwardemail.net), filling these fields
+enables the bundled plugin:
 
-### Catch-All / Alias Email
+- `forwardemail_api_key` — from **My Account → Security** on Forward Email.
+- `forwardemail_domain` — e.g. `example.com`.
+- `forwardemail_auto_create` — create aliases + identities on reply to
+  catch-all addresses.
+- `forwardemail_auto_delete` — remove aliases when the matching identity is
+  deleted. Leave off unless you really want that.
 
-This add-on includes the
-[Forward Email plugin](https://github.com/teh-hippo/roundcube-forwardemail),
-which integrates with [Forward Email](https://forwardemail.net) to automatically
-manage aliases and per-identity SMTP credentials.
+Leave `forwardemail_api_key` blank to disable the plugin entirely.
 
-When you add a new sender identity in Roundcube, the plugin:
+### Additional Roundcube plugins
 
-1. Creates the alias on Forward Email via their API
-2. Generates SMTP credentials for that alias
-3. Stores the credentials so you can send as that address
-
-**Setup:**
-
-1. Open Roundcube Settings > Forward Email
-2. Enter your Forward Email API key
-3. Enter your domain (e.g. `itstotally.me`)
-4. Create identities as needed — aliases are created automatically
-
-The `identities_level` is set to `0`, allowing any From address. The
-`identity_select` plugin auto-selects the correct sender identity when
-replying based on the `Delivered-To` header.
-
-### Additional Plugins
-
-You can install additional Roundcube plugins via composer by adding them
-to the `plugins` configuration option:
+Add composer package names to the `plugins` list, e.g.:
 
 ```yaml
 plugins:
   - elm/identity_smtp
 ```
 
-Plugins are installed at container startup. The package name should be
-the composer package name (e.g. `vendor/package`).
+Plugins are installed at container start. A restart is enough — no rebuild.
 
-### Data Persistence
+### Direct port access (advanced)
 
-All data is stored in `/data/` inside the add-on container:
+By default the add-on is reachable only through HA ingress. To also expose
+port 80 on the host:
 
-- **SQLite database** (`/data/db/roundcube.db`) — user preferences, identities,
-  contacts, cached data
-- **Encryption key** (`/data/des_key`) — generated once on first start
+1. In the add-on **Network** panel, map `80/tcp` to a host port.
+2. If you want TLS on that port, set `ssl: true` and provide
+   `certfile` / `keyfile` paths relative to `/ssl/` (the HA SSL folder).
 
-This data is included in Home Assistant backups automatically.
+## Data persistence
 
-## Troubleshooting
+All state lives under `/data/` inside the container:
 
-### Cannot connect to IMAP server
+- `/data/db/roundcube.db` — SQLite (identities, contacts, preferences).
+- `/data/des_key` — encryption key, generated once on first start.
 
-- Verify `imap_host` includes the correct protocol prefix (`ssl://` or `tls://`)
-- Check that `imap_port` matches your provider (993 for SSL, 143 for STARTTLS)
-- Ensure your credentials are correct (some providers require app-specific
-  passwords or generated tokens)
+HA backups include `/data/` automatically.
 
-### Ingress shows blank page
+## Troubleshooting (add-on specific)
 
-- Check the add-on logs for PHP or nginx errors
-- Try restarting the add-on
-- If using a reverse proxy, ensure WebSocket and header forwarding are configured
+For **anything that feels like Roundcube itself** — rendering glitches,
+compose quirks, keyboard shortcuts, skin issues — see the Roundcube links
+at the top of this document. The items below are specific to the HA add-on.
 
-### Login fails with "connection refused"
+### The add-on won't start
 
-- The IMAP/SMTP server may be unreachable from your HA instance
-- Check firewall rules and DNS resolution
+- Check **Log** tab for PHP-FPM or nginx errors.
+- If you just changed the `plugins` list, a failed composer fetch will stop
+  startup. Restart after removing the offending package.
+
+### Sidebar shows a blank page or 502
+
+- PHP-FPM may still be warming up. Wait ~10 seconds and refresh.
+- If it persists, check **Log** for `php-fpm` restart loops.
+
+### Login fails
+
+- Verify the IMAP host prefix (`ssl://` vs `tls://`) and port match your
+  provider.
+- For Forward Email, the password is the **SMTP password for the alias**,
+  not the Forward Email account password.
+- If the provider requires app-specific passwords (Gmail, Fastmail), you
+  must generate one on their end.
+
+### Forward Email plugin not provisioning
+
+- Confirm `forwardemail_api_key` and `forwardemail_domain` are set.
+- Check add-on log for `[forwardemail]` entries and API errors.
+- API key validity: run from HA Terminal:
+  ```
+  curl -u 'YOUR_API_KEY:' https://api.forwardemail.net/v1/domains
+  ```
+
+### I changed config — do I need to rebuild?
+
+**No.** Changing any Configuration option triggers a fast container restart
+(seconds). A full rebuild is only needed when the add-on version changes
+(Dockerfile / rootfs updates).

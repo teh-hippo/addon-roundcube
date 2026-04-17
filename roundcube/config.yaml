@@ -2,7 +2,7 @@
 name: Roundcube Webmail
 version: dev
 slug: roundcube
-description: Roundcube webmail client for any IMAP server
+description: Roundcube webmail in the HA sidebar with Forward Email auto-provisioning
 url: https://github.com/teh-hippo/addon-roundcube
 init: false
 arch:
