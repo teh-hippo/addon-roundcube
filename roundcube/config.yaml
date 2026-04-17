@@ -24,6 +24,12 @@ options:
   smtp_port: 465
   log_level: info
   plugins: []
+  catchall:
+    enabled: false
+    autologin: false
+    autologin_user: ""
+    autologin_password: ""
+    identity_autocreate: true
 schema:
   imap_host: str
   imap_port: port
@@ -32,3 +38,9 @@ schema:
   log_level: "list(trace|debug|info|notice|warning|error|fatal)"
   plugins:
     - str
+  catchall:
+    enabled: bool?
+    autologin: bool?
+    autologin_user: str?
+    autologin_password: password?
+    identity_autocreate: bool?

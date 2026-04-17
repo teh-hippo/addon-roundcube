@@ -55,7 +55,8 @@ RUN curl -J -L -o /tmp/roundcube.tar.gz \
 WORKDIR /var/www/roundcube
 # hadolint ignore=DL3059
 RUN echo "cache-bust-v11-db-init-tolerant" \
-    && composer --version
+    && composer --version \
+    && composer config --no-interaction allow-plugins.roundcube/plugin-installer true
 WORKDIR /
 
 # Copy root filesystem — force executable permissions

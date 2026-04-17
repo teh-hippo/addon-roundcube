@@ -49,6 +49,33 @@ plugins:
 
 Plugins are installed at container start. A restart is enough — no rebuild.
 
+### Catch-all mailbox
+
+If you use a wildcard alias (e.g. via Forward Email) where every address on
+your domain lands in one mailbox, enable the built-in catch-all support.
+
+```yaml
+catchall:
+  enabled: true
+  autologin: true
+  autologin_user: inbox@example.com
+  autologin_password: "your-app-password"
+  identity_autocreate: true
+```
+
+What each flag does:
+
+- `enabled` — installs the
+  [`teh-hippo/roundcube-catchall`](https://github.com/teh-hippo/roundcube-catchall)
+  plugin at startup. Required for any of the other flags to take effect.
+- `autologin` + `autologin_user` + `autologin_password` — bypass the
+  Roundcube login screen when the add-on is opened through HA ingress. The
+  credentials above are stored in plain text inside the add-on options
+  (Supervisor holds `options.json` with root-only permissions).
+- `identity_autocreate` — when you reply to a message, the plugin adds the
+  `To:` address as a Roundcube identity so the next reply uses it as the
+  `From:`. Leave enabled for a true catch-all experience.
+
 ### Plugin extension point (advanced)
 
 Any subdirectory dropped into `/share/roundcube/plugins/<name>/` is picked up
