@@ -34,6 +34,34 @@ restart the Roundcube add-on afterward to pick up the new config.
    **Documentation** tab for option details.
 4. Start it, then restart Roundcube Webmail.
 
+### Logging in with a catch-all domain
+
+This add-on does **not** create a primary mailbox for you — Forward Email is a
+forwarder, not a provider. To actually receive mail in Roundcube you need a
+destination mailbox that Forward Email routes to, and then either:
+
+- **Recommended: use a catch-all alias** (`*@yourdomain`) on your domain so
+  every address on the domain delivers to one mailbox. Set it up per
+  <https://forwardemail.net/faq#do-you-support-catch-all-domains> and generate
+  an IMAP/SMTP password for the alias from the Forward Email dashboard.
+- **Or: create a specific alias** (e.g. `inbox@yourdomain`) and generate a
+  password for that.
+
+Use `<alias>@<domain>` and the generated password to log into Roundcube.
+
+### Optional: skip the Roundcube login screen
+
+If you'd rather not type that password every time, set:
+
+- `autologin_user`: the full email you want to log in as (e.g. `inbox@example.com`)
+- `autologin_password`: the IMAP/SMTP password generated for that alias
+- `autologin`: `true`
+
+With this on, anyone who can reach the Roundcube Ingress URL is logged in as
+that identity. Home Assistant's own authentication is the gate — treat this
+as equivalent to storing the password in plain text in the add-on config
+(which, effectively, it is).
+
 ## Support
 
 Issues specific to this add-on: <https://github.com/teh-hippo/addon-roundcube/issues>

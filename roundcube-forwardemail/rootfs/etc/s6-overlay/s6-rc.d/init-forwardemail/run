@@ -12,12 +12,18 @@ declare auto_create_raw
 declare auto_delete_raw
 declare auto_create_php
 declare auto_delete_php
+declare autologin_raw
+declare autologin_user
+declare autologin_password
+declare autologin_php
 declare api_key_php
 declare domain_php
+declare autologin_user_php
+declare autologin_password_php
 declare -r plugin_repo="https://github.com/teh-hippo/roundcube-forwardemail.git"
 # Pin to a specific commit to avoid silently pulling new upstream code into
 # Roundcube every restart. Bump intentionally when rolling forward.
-declare -r plugin_ref="ad070517ca81c4ce90c7ab8a5185ffa398e043a0"
+declare -r plugin_ref="b5b0643bd1d74d893c6c93899b56333ae11dfe26"
 declare -r plugin_root="/share/roundcube/plugins"
 declare -r plugin_dir="${plugin_root}/forwardemail"
 declare -r plugin_staging="${plugin_root}/.forwardemail.staging.$$"
@@ -44,6 +50,9 @@ api_key=$(bashio::config 'api_key')
 domain=$(bashio::config 'domain')
 auto_create_raw=$(bashio::config 'auto_create')
 auto_delete_raw=$(bashio::config 'auto_delete')
+autologin_raw=$(bashio::config 'autologin')
+autologin_user=$(bashio::config 'autologin_user')
+autologin_password=$(bashio::config 'autologin_password')
 
 if [[ "${domain}" == *"@"* ]]; then
     bashio::log.fatal "domain must be a bare domain (e.g. 'example.com'), not an email address."
@@ -53,6 +62,20 @@ fi
 if [[ "${domain}" != *.* ]]; then
     bashio::log.fatal "domain must be a fully-qualified domain (contain a dot), got: '${domain}'"
     exit 1
+fi
+
+if [[ "${autologin_raw}" == "true" ]]; then
+    if [[ -z "${autologin_user}" || -z "${autologin_password}" ]]; then
+        bashio::log.fatal "autologin is enabled but autologin_user and/or autologin_password are empty."
+        bashio::log.fatal "  Set both, or disable autologin."
+        exit 1
+    fi
+    if [[ "${autologin_user}" != *"@${domain}" ]]; then
+        bashio::log.warning "autologin_user '${autologin_user}' is not on domain '${domain}'."
+    fi
+    autologin_php="true"
+else
+    autologin_php="false"
 fi
 
 [[ "${auto_create_raw}" == "false" ]] && auto_create_php="false" || auto_create_php="true"
@@ -92,6 +115,8 @@ fi
 bashio::log.info "Writing plugin config..."
 api_key_php=$(php_escape_sq "${api_key}")
 domain_php=$(php_escape_sq "${domain}")
+autologin_user_php=$(php_escape_sq "${autologin_user}")
+autologin_password_php=$(php_escape_sq "${autologin_password}")
 
 cat > "${plugin_staging}/config.inc.php" <<PHPEOF
 <?php
@@ -101,6 +126,9 @@ cat > "${plugin_staging}/config.inc.php" <<PHPEOF
 \$config['forwardemail_domain']      = '${domain_php}';
 \$config['forwardemail_auto_create'] = ${auto_create_php};
 \$config['forwardemail_auto_delete'] = ${auto_delete_php};
+\$config['forwardemail_autologin']      = ${autologin_php};
+\$config['forwardemail_autologin_user'] = '${autologin_user_php}';
+\$config['forwardemail_autologin_pass'] = '${autologin_password_php}';
 PHPEOF
 chmod 0640 "${plugin_staging}/config.inc.php"
 
@@ -130,4 +158,8 @@ bashio::log.info "  domain:      ${domain}"
 bashio::log.info "  api_key:     ${api_key_mask}"
 bashio::log.info "  auto_create: ${auto_create_php}"
 bashio::log.info "  auto_delete: ${auto_delete_php}"
+bashio::log.info "  autologin:   ${autologin_php}"
+if [[ "${autologin_php}" == "true" ]]; then
+    bashio::log.info "  autologin_user: ${autologin_user}"
+fi
 bashio::log.notice "Restart the Roundcube Webmail add-on to load plugin changes."

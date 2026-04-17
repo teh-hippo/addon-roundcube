@@ -32,11 +32,50 @@ Settings → Add-ons → Roundcube Forward Email → Configuration.
 - **API key** — generate under **My Account → Security** on
   [forwardemail.net](https://forwardemail.net/my-account/security). Required.
 - **Domain** — the domain you have registered with Forward Email. Required.
+  Must be the bare domain (e.g. `example.com`) — not an email address.
 - **Auto-create aliases on reply** — default on. Recommended for the
   catch-all workflow.
 - **Auto-delete aliases on identity removal** — default off. Leave off
   unless you really want identity deletion to nuke the alias on the Forward
   Email side too.
+- **Autologin** — default off. When on, `autologin_user` and
+  `autologin_password` must be set and Roundcube will skip its login screen.
+  See the **Autologin** section below for the security tradeoff.
+- **Autologin user / password** — the full email and IMAP/SMTP password to
+  log in as. Generate the password from the Forward Email dashboard
+  (**Domain → Aliases → Generate Password**).
+
+### Logging in — mailbox setup
+
+Forward Email forwards; it does not host mailboxes. To receive mail in
+Roundcube you need a destination Forward Email will route to, and then
+either:
+
+- **Catch-all** (`*@yourdomain`) — one alias captures every address on the
+  domain. Setup guide:
+  <https://forwardemail.net/faq#do-you-support-catch-all-domains>
+- **Specific alias** — create e.g. `inbox@yourdomain` in the Forward Email
+  aliases UI and point it at your real mailbox.
+
+Either way, generate a password for the alias in the Forward Email dashboard
+(**Domain → Aliases → click the alias → Generate Password**). Use that
+password (and the full alias email) to log into Roundcube.
+
+### Autologin
+
+If you enable `autologin`, the Forward Email Roundcube plugin injects a
+synthetic login POST on every anonymous request, so the Roundcube login
+form is skipped. It only applies to the single identity you configure.
+
+**Security tradeoff**: anyone who can reach this Roundcube instance is
+logged in as that alias. In the HA add-on deployment the gate is HA
+Ingress authentication — so you are effectively saying "any HA user who
+can see the sidebar is also this email user". That's fine for a
+single-user household; avoid if you share HA with family or guests.
+
+The password is stored in the add-on options (HA marks it as `password`,
+so the UI hides it) and written into `config.inc.php` under
+`/share/roundcube/plugins/forwardemail/` with mode `0640`.
 
 ### Order of operations
 
