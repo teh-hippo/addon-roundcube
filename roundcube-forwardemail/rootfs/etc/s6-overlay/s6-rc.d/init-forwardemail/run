@@ -23,7 +23,7 @@ declare autologin_password_php
 declare -r plugin_repo="https://github.com/teh-hippo/roundcube-forwardemail.git"
 # Pin to a specific commit to avoid silently pulling new upstream code into
 # Roundcube every restart. Bump intentionally when rolling forward.
-declare -r plugin_ref="b5b0643bd1d74d893c6c93899b56333ae11dfe26"
+declare -r plugin_ref="a6fceefe1169a2c4429dc8bb6a3efdbdf77310bf"
 declare -r plugin_root="/share/roundcube/plugins"
 declare -r plugin_dir="${plugin_root}/forwardemail"
 declare -r plugin_staging="${plugin_root}/.forwardemail.staging.$$"
@@ -122,10 +122,12 @@ cat > "${plugin_staging}/config.inc.php" <<PHPEOF
 <?php
 // Managed by the Roundcube Forward Email add-on — edits will be overwritten.
 
-\$config['forwardemail_api_key']     = '${api_key_php}';
-\$config['forwardemail_domain']      = '${domain_php}';
-\$config['forwardemail_auto_create'] = ${auto_create_php};
-\$config['forwardemail_auto_delete'] = ${auto_delete_php};
+// Use the plaintext (admin/system) slot; the regular forwardemail_api_key
+// slot is for user-encrypted values stored via Roundcube's Settings UI.
+\$config['forwardemail_api_key_plain'] = '${api_key_php}';
+\$config['forwardemail_domain']        = '${domain_php}';
+\$config['forwardemail_auto_create']   = ${auto_create_php};
+\$config['forwardemail_auto_delete']   = ${auto_delete_php};
 \$config['forwardemail_autologin']      = ${autologin_php};
 \$config['forwardemail_autologin_user'] = '${autologin_user_php}';
 \$config['forwardemail_autologin_pass'] = '${autologin_password_php}';
