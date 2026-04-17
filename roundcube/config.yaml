@@ -15,14 +15,10 @@ panel_title: Webmail
 panel_admin: false
 stage: experimental
 apparmor: false
-ports:
-  80/tcp: null
-ports_description:
-  80/tcp: Web interface (optional direct HTTP access; use a reverse proxy for HTTPS)
 options:
-  imap_host: "ssl://imap.forwardemail.net"
+  imap_host: ""
   imap_port: 993
-  smtp_host: "ssl://smtp.forwardemail.net"
+  smtp_host: ""
   smtp_port: 465
   log_level: info
   plugins: []

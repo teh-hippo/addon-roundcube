@@ -54,7 +54,7 @@ RUN curl -J -L -o /tmp/roundcube.tar.gz \
 # NOTE: Change the echo string below to force Docker to re-fetch the plugin
 WORKDIR /var/www/roundcube
 # hadolint ignore=DL3059
-RUN echo "cache-bust-v8-config-simplify" \
+RUN echo "cache-bust-v9-ingress-only" \
     && composer config repositories.forwardemail vcs https://github.com/teh-hippo/roundcube-forwardemail.git \
     && composer require teh-hippo/forwardemail:dev-main --no-interaction --update-no-dev --optimize-autoloader --ignore-platform-reqs
 WORKDIR /

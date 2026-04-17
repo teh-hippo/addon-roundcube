@@ -14,9 +14,4 @@ bashio::var.json \
         -template /etc/nginx/templates/ingress.gtpl \
         -out /etc/nginx/servers/ingress.conf
 
-# Generate direct access configuration if port 80 is mapped
-if bashio::var.has_value "$(bashio::addon.port 80)"; then
-    cp /etc/nginx/templates/direct.conf /etc/nginx/servers/direct.conf
-fi
-
 bashio::log.info "nginx configured."

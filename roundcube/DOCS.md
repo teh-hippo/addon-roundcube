@@ -66,16 +66,6 @@ plugins:
 
 Plugins are installed at container start. A restart is enough — no rebuild.
 
-### Direct port access (advanced)
-
-By default the add-on is reachable only through HA ingress. To also expose
-it on the host network, map `80/tcp` to a host port in the add-on's
-**Network** panel. This serves plain HTTP.
-
-If you want HTTPS on that host port, put the add-on behind a reverse proxy
-such as the **NGINX Proxy Manager** or **Duck DNS / Let's Encrypt** add-ons,
-which handle certificates for you.
-
 ## Data persistence
 
 All state lives under `/data/` inside the container:
