@@ -45,6 +45,16 @@ domain=$(bashio::config 'domain')
 auto_create_raw=$(bashio::config 'auto_create')
 auto_delete_raw=$(bashio::config 'auto_delete')
 
+if [[ "${domain}" == *"@"* ]]; then
+    bashio::log.fatal "domain must be a bare domain (e.g. 'example.com'), not an email address."
+    bashio::log.fatal "  got: '${domain}'"
+    exit 1
+fi
+if [[ "${domain}" != *.* ]]; then
+    bashio::log.fatal "domain must be a fully-qualified domain (contain a dot), got: '${domain}'"
+    exit 1
+fi
+
 [[ "${auto_create_raw}" == "false" ]] && auto_create_php="false" || auto_create_php="true"
 [[ "${auto_delete_raw}" == "true" ]] && auto_delete_php="true" || auto_delete_php="false"
 
