@@ -61,8 +61,14 @@ add [`teh-hippo/roundcube-catchall`](https://github.com/teh-hippo/roundcube-catc
 to the `plugins` list. The plugin auto-creates an identity for the
 delivered-to address on Reply, so the next reply uses the right `From:`.
 
-Plugin-specific options (autologin, identity auto-create) live in the plugin's
+Plugin-specific options (identity auto-create) live in the plugin's
 own `config.inc.php` — see its README.
+
+#### Persistent login / Remember Me
+
+To add a "Remember Me" checkbox to the login form (or enable fully automatic
+login), add [`teh-hippo/roundcube-remember-me`](https://github.com/teh-hippo/roundcube-remember-me)
+to the `plugins` list. See the plugin README for configuration options.
 
 ## Data persistence
 
