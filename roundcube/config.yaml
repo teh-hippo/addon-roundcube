@@ -13,7 +13,7 @@ ingress_stream: true
 panel_icon: mdi:email
 panel_title: Webmail
 panel_admin: false
-stage: experimental
+stage: stable
 apparmor: false
 options:
   imap_host: ""
