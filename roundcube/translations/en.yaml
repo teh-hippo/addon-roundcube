@@ -20,36 +20,25 @@ configuration:
     name: SMTP Port
     description: >-
       SMTP server port. Typically 465 for SSL/TLS or 587 for STARTTLS.
-  ssl:
-    name: SSL
-    description: >-
-      Enable SSL/TLS for direct port access (port 80).
-      Not needed for ingress access.
-  certfile:
-    name: Certificate File
-    description: >-
-      SSL certificate file path relative to /ssl/.
-  keyfile:
-    name: Private Key File
-    description: >-
-      SSL private key file path relative to /ssl/.
   log_level:
     name: Log Level
     description: >-
       Controls the verbosity of log output.
   plugins:
-    name: Additional Plugins
+    name: Additional Roundcube plugins (advanced)
     description: >-
-      List of composer package names to install at startup.
-      Example: elm/identity_smtp
+      Optional. Composer package names of third-party Roundcube plugins to
+      install at startup, e.g. elm/identity_smtp. Leave empty for the default
+      set. Only needed if you want to extend Roundcube beyond what this add-on
+      ships with.
   forwardemail_api_key:
-    name: Forward Email API key
+    name: Forward Email API key (optional)
     description: >-
-      API key from https://forwardemail.net/my-account/security. Leave blank
-      if you are not using Forward Email. Enables the bundled plugin that
-      auto-provisions aliases and SMTP credentials.
+      Only fill in if you use Forward Email. API key from
+      https://forwardemail.net/my-account/security. Enables the bundled plugin
+      that auto-provisions aliases and SMTP credentials. Leave blank to disable.
   forwardemail_domain:
-    name: Forward Email domain
+    name: Forward Email domain (optional)
     description: >-
       Domain registered with Forward Email (e.g. example.com). Aliases are
       created under this domain when you add a new identity in Roundcube.

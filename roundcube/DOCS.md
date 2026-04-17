@@ -69,11 +69,12 @@ Plugins are installed at container start. A restart is enough — no rebuild.
 ### Direct port access (advanced)
 
 By default the add-on is reachable only through HA ingress. To also expose
-port 80 on the host:
+it on the host network, map `80/tcp` to a host port in the add-on's
+**Network** panel. This serves plain HTTP.
 
-1. In the add-on **Network** panel, map `80/tcp` to a host port.
-2. If you want TLS on that port, set `ssl: true` and provide
-   `certfile` / `keyfile` paths relative to `/ssl/` (the HA SSL folder).
+If you want HTTPS on that host port, put the add-on behind a reverse proxy
+such as the **NGINX Proxy Manager** or **Duck DNS / Let's Encrypt** add-ons,
+which handle certificates for you.
 
 ## Data persistence
 
