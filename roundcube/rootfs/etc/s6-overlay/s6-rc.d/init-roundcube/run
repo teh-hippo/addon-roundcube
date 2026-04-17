@@ -89,22 +89,38 @@ RCEOF
 
 # Append Forward Email plugin defaults when provided via add-on options.
 # These act as server-level defaults; per-user settings still override them.
+#
+# php_escape_sq: escape a string for safe embedding inside a PHP
+# single-quoted literal. PHP single-quoted strings only treat \\ and \'
+# as escape sequences, so both need escaping and nothing else.
+php_escape_sq() {
+    local s=${1//\\/\\\\}
+    printf '%s' "${s//\'/\\\'}"
+}
+
 if bashio::config.has_value 'forwardemail_api_key'; then
-    fe_api_key=$(bashio::config 'forwardemail_api_key')
+    fe_api_key=$(php_escape_sq "$(bashio::config 'forwardemail_api_key')")
     cat >> /var/www/roundcube/config/config.inc.php <<PHPEOF
 
 // Forward Email — plaintext API key from add-on configuration
-\$config['forwardemail_api_key_plain'] = '${fe_api_key//\'/\\\'}';
+\$config['forwardemail_api_key_plain'] = '${fe_api_key}';
 PHPEOF
 fi
 if bashio::config.has_value 'forwardemail_domain'; then
-    fe_domain=$(bashio::config 'forwardemail_domain')
+    fe_domain=$(php_escape_sq "$(bashio::config 'forwardemail_domain')")
     cat >> /var/www/roundcube/config/config.inc.php <<PHPEOF
-\$config['forwardemail_domain'] = '${fe_domain//\'/\\\'}';
+\$config['forwardemail_domain'] = '${fe_domain}';
 PHPEOF
 fi
-fe_auto_create=$(bashio::config 'forwardemail_auto_create' 'true')
-fe_auto_delete=$(bashio::config 'forwardemail_auto_delete' 'false')
+
+# Coerce bashio bool values to exact PHP literals. Anything that is not the
+# literal string "true" becomes false so a misconfigured option can never
+# inject PHP into the config.
+fe_auto_create_raw=$(bashio::config 'forwardemail_auto_create' 'true')
+fe_auto_delete_raw=$(bashio::config 'forwardemail_auto_delete' 'false')
+[[ "${fe_auto_create_raw}" == "true" ]] && fe_auto_create="true" || fe_auto_create="false"
+[[ "${fe_auto_delete_raw}" == "true" ]] && fe_auto_delete="true" || fe_auto_delete="false"
+
 cat >> /var/www/roundcube/config/config.inc.php <<PHPEOF
 \$config['forwardemail_auto_create'] = ${fe_auto_create};
 \$config['forwardemail_auto_delete'] = ${fe_auto_delete};
@@ -112,8 +128,8 @@ PHPEOF
 
 bashio::log.info "FE config snippet:"
 grep -E "forwardemail" /var/www/roundcube/config/config.inc.php | while IFS= read -r line; do
-    # Mask api key in logs
-    masked=$(echo "$line" | sed -E "s/(api_key_plain.*')[^']+(';)/\1***\2/")
+    # Mask api key in logs — match anything between the final two quotes on the line.
+    masked=$(echo "$line" | sed -E "s/(api_key_plain[^=]*= ')[^']*(';)/\1***\2/")
     bashio::log.info "  ${masked}"
 done
 
@@ -147,9 +163,10 @@ done
 # Initialize SQLite database on first run
 if [[ ! -f /data/db/roundcube.db ]]; then
     bashio::log.info "Initializing SQLite database..."
-    php /var/www/roundcube/bin/initdb.sh \
-        --dir=/var/www/roundcube/SQL/ \
-        2>&1 || bashio::log.error "Database initialization failed"
+    if ! php /var/www/roundcube/bin/initdb.sh --dir=/var/www/roundcube/SQL/ 2>&1; then
+        bashio::log.fatal "Database initialization failed"
+        exit 1
+    fi
 fi
 
 # Ensure correct permissions
@@ -162,6 +179,6 @@ bashio::log.info "  SMTP: ${smtp_host}:${smtp_port}"
 
 # Debug: verify plugin installation
 bashio::log.info "  Plugin dir check:"
-ls -la /var/www/roundcube/plugins/forwardemail/ 2>&1 | while read line; do
+ls -la /var/www/roundcube/plugins/forwardemail/ 2>&1 | while IFS= read -r line; do
     bashio::log.info "    ${line}"
 done
