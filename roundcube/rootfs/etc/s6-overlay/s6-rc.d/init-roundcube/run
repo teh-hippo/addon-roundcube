@@ -24,13 +24,11 @@ ingress_entry=$(bashio::addon.ingress_entry)
 declare -a plugin_packages=()
 if bashio::config.has_value 'plugins'; then
     _plugins_raw="$(bashio::config 'plugins')"
-    bashio::log.info "DEBUG raw='${_plugins_raw}' len=${#_plugins_raw}"
     while IFS= read -r plugin; do
-        bashio::log.info "DEBUG line='${plugin}'"
         [[ -n "${plugin}" ]] && plugin_packages+=("${plugin}")
     done <<< "${_plugins_raw}"
+    unset _plugins_raw
 fi
-bashio::log.info "Plugins to install: ${plugin_packages[*]:-<none>} (count=${#plugin_packages[@]})"
 
 if [[ ${#plugin_packages[@]} -gt 0 ]]; then
     bashio::log.info "Installing additional plugins via composer..."
